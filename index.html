@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Drop Text</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:#f7f5f0;}
+canvas{position:fixed;inset:0;}
+#hint,#btn-reset,#btn-mute{
+  font-family:'Noto Serif SC',Georgia,serif;
+  font-size:11px;letter-spacing:2px;color:#c8c0b4;
+  background:none;border:none;
+}
+#hint{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);pointer-events:none;transition:opacity .8s;white-space:nowrap;}
+#btn-reset{position:fixed;bottom:20px;right:28px;cursor:pointer;}
+#btn-reset:hover{color:#888;}
+#btn-mute{position:fixed;bottom:20px;left:28px;cursor:pointer;}
+#btn-mute:hover{color:#888;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hint">开始输入…</div>
+<button id="btn-reset">清空</button>
+<button id="btn-mute">音效</button>
+<script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
+<script>
+(function(){
+const { Engine, Bodies, Body, World, Mouse, MouseConstraint, Constraint } = Matter;
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const hint = document.getElementById('hint');
+
+let W, H;
+function resize(){
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  rebuildWalls();
+}
+
+const eng  = Engine.create({ gravity:{x:0,y:4}, enableSleeping:true });
+const world = eng.world;
+let floor, wL, wR;
+function rebuildWalls(){
+  if(floor) World.remove(world,[floor,wL,wR]);
+  floor = Bodies.rectangle(W/2, H-55, W*3, 50, {isStatic:true,friction:8,restitution:0,frictionStatic:30});
+  wL    = Bodies.rectangle(-30, H/2, 60, H*3, {isStatic:true});
+  wR    = Bodies.rectangle(W+30, H/2, 60, H*3, {isStatic:true});
+  World.add(world,[floor,wL,wR]);
+}
+resize();
+window.addEventListener('resize', resize);
+
+const FS    = 20;
+const FONT  = `${FS}px 'Noto Serif SC',Georgia,serif`;
+const PX    = Math.round(window.innerWidth * 0.1);
+const PY    = 80;
+const LH    = FS * 2.0;
+const LIMIT = 80;
+const mc    = document.createElement('canvas').getContext('2d');
+mc.font     = FONT;
+const NO_START = new Set('，。！？、：；」』）〕】〉》…—～'.split(''));
+function charW(ch){ return mc.measureText(ch).width; }
+
+function wrap(t){
+  const maxW = W - PX*2;
+  const ls = [''];
+  for(const ch of t){
+    if(ch==='\n'){ ls.push(''); continue; }
+    const cur = ls[ls.length-1];
+    if(mc.measureText(cur+ch).width < maxW) ls[ls.length-1]+=ch;
+    else if(NO_START.has(ch)) ls[ls.length-1]+=ch;
+    else ls.push(ch);
+  }
+  return ls;
+}
+
+let typed='', lines=[''], cpos=[];
+let phase='typing'; // typing | shaking | dropping
+let shakeTick=0, tick=0;
+const layers=[];
+let lockInput=false; // true during shaking+dropping
+
+function buildCpos(){
+  cpos=[];
+  lines.forEach((line,li)=>{
+    let x=PX;
+    const y=PY+li*LH;
+    for(const ch of line){
+      const w=charW(ch);
+      cpos.push({ch,x:x+w/2,y:y+FS*0.55,w});
+      x+=w;
+    }
+  });
+}
+
+function update(){
+  if(lockInput) return;
+  lines=wrap(typed);
+  buildCpos();
+  if(typed.replace(/\s/g,'').length>=LIMIT){
+    lockInput=true;
+    phase='shaking'; shakeTick=0;
+    hint.textContent='…';
+    playThud();
+    const snap=cpos.filter(p=>p.ch.trim());
+    setTimeout(()=>startDrop(snap), 700);
+  }
+}
+
+// ── Drop — all at once ──
+function startDrop(snap){
+  phase='dropping';
+  hint.style.opacity='0';
+
+  layers.forEach(l=>{ l.alpha=Math.max(0,l.alpha-0.18); });
+  for(let i=layers.length-1;i>=0;i--){
+    if(layers[i].alpha<=0){ layers[i].chars.forEach(c=>World.remove(world,c.body)); layers.splice(i,1); }
+  }
+
+  const N=snap.length;
+  if(!N){ finishDrop(); return; }
+
+  const bodies=[];
+  const newChars=[];
+
+  snap.forEach(({ch,x,y,w})=>{
+    const b=Bodies.rectangle(x,y,w,FS*0.9,{
+      restitution:0,friction:8,frictionAir:0.15,frictionStatic:30,
+      sleepThreshold:15,angle:(Math.random()-0.5)*0.05,
+    });
+    Body.setVelocity(b,{x:(Math.random()-0.5)*3,y:0.5+Math.random()});
+    b._ch=ch;
+    World.add(world,b);
+    bodies.push(b); newChars.push({body:b,ch});
+  });
+
+  for(let j=0;j<bodies.length-1;j++){
+    World.add(world,Constraint.create({
+      bodyA:bodies[j],bodyB:bodies[j+1],
+      length:10+Math.random()*8,stiffness:0.02,damping:0.06
+    }));
+  }
+
+  layers.push({chars:newChars,alpha:1.0});
+  finishDrop();
+}
+
+function finishDrop(){
+  typed=''; lines=[''];cpos=[];
+  phase='typing'; shakeTick=0;
+  lockInput=false;
+  setTimeout(()=>{ hint.style.opacity='1'; hint.textContent='继续写…'; },900);
+}
+
+// ── Audio ──
+const AC=window.AudioContext||window.webkitAudioContext;
+let ac=null, muted=false;
+function getAC(){ if(!ac) ac=new AC(); return ac; }
+function playKey(){
+  if(muted) return;
+  try{
+    const a=getAC(),dur=0.03;
+    const buf=a.createBuffer(1,Math.floor(a.sampleRate*dur),a.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,4);
+    const src=a.createBufferSource(); src.buffer=buf;
+    const g=a.createGain();
+    g.gain.setValueAtTime(0.06+Math.random()*0.03,a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+dur);
+    const f=a.createBiquadFilter(); f.type='bandpass'; f.frequency.value=1800+Math.random()*1400; f.Q.value=1.2;
+    src.connect(f); f.connect(g); g.connect(a.destination); src.start();
+  }catch(e){}
+}
+function playThud(){
+  if(muted) return;
+  try{
+    const a=getAC(),dur=0.14;
+    const buf=a.createBuffer(1,Math.floor(a.sampleRate*dur),a.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2)*0.5;
+    const src=a.createBufferSource(); src.buffer=buf;
+    const g=a.createGain();
+    g.gain.setValueAtTime(0.16,a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+dur);
+    const f=a.createBiquadFilter(); f.type='lowpass'; f.frequency.value=280;
+    src.connect(f); f.connect(g); g.connect(a.destination); src.start();
+  }catch(e){}
+}
+document.getElementById('btn-mute').addEventListener('click',()=>{
+  muted=!muted;
+  const b=document.getElementById('btn-mute');
+  b.style.textDecoration=muted?'line-through':'none';
+  b.style.color=muted?'#ddd':'';
+});
+
+// ── Input ──
+const ime=document.createElement('textarea');
+ime.style.cssText='position:fixed;top:-300px;left:0;width:200px;height:40px;opacity:0;font-size:16px;resize:none;';
+ime.setAttribute('autocomplete','off'); ime.setAttribute('autocorrect','off');
+ime.setAttribute('autocapitalize','off'); ime.setAttribute('spellcheck','false');
+document.body.appendChild(ime);
+window.addEventListener('click',()=>ime.focus());
+ime.focus();
+
+let composing=false;
+ime.addEventListener('compositionstart',()=>{ composing=true; });
+ime.addEventListener('compositionupdate',()=>{ playKey(); });
+ime.addEventListener('compositionend',e=>{
+  composing=false;
+  const val=e.data||'';
+  ime.value='';
+  if(lockInput||!val) return;
+  typed+=val; update();
+});
+
+window.addEventListener('keydown',e=>{
+  if(composing||lockInput) return;
+  if(e.key==='Backspace'){
+    e.preventDefault();
+    if(typed.length){ typed=typed.slice(0,-1); playKey(); update(); }
+  } else if(e.key==='Enter'){
+    e.preventDefault();
+    typed+='\n'; playKey(); update();
+  } else if(e.key.length===1&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!e.isComposing){
+    e.preventDefault();
+    const k=e.key;
+    setTimeout(()=>{
+      if(composing||lockInput) return;
+      typed+=k; playKey(); update();
+    },0);
+  }
+});
+
+// ── Reset ──
+document.getElementById('btn-reset').addEventListener('click',()=>{
+  layers.forEach(l=>l.chars.forEach(c=>World.remove(world,c.body)));
+  layers.length=0;
+  typed='';lines=[''];cpos=[];
+  phase='typing';shakeTick=0;lockInput=false;
+  ime.value='';composing=false;
+  hint.style.opacity='1'; hint.textContent='开始输入…';
+});
+
+// ── Mouse ──
+const mouse=Mouse.create(canvas);
+const mcon=MouseConstraint.create(eng,{mouse,constraint:{stiffness:0.12,damping:0.1,render:{visible:false}}});
+World.add(world,mcon);
+mouse.element.removeEventListener('mousewheel',mouse.mousewheel);
+
+// ── Render ──
+function draw(){
+  requestAnimationFrame(draw);
+  Engine.update(eng,1000/60);
+  tick++;
+  ctx.clearRect(0,0,W,H);
+  ctx.font=FONT; ctx.fillStyle='#1e1a14';
+  ctx.textBaseline='middle'; ctx.textAlign='left';
+
+  if(phase==='typing'||phase==='shaking'){
+    shakeTick++;
+    const shaking=phase==='shaking';
+    cpos.forEach(({ch,x,y,w},i)=>{
+      let dx=0,dy=0;
+      if(shaking){
+        const p=i/Math.max(cpos.length-1,1);
+        const it=Math.pow(p,0.4)*shakeTick*0.35;
+        dx=(Math.random()-0.5)*Math.min(it,9);
+        dy=(Math.random()-0.5)*Math.min(it*0.5,4);
+      }
+      ctx.fillText(ch,x-w/2+dx,y+dy);
+    });
+    if(phase==='typing'){
+      const last=cpos[cpos.length-1];
+      const cx=last?last.x+last.w/2+2:PX;
+      const cy=last?last.y:PY+FS*0.55;
+      if(Math.floor(tick/28)%2===0) ctx.fillRect(cx,cy-FS*0.4,1.5,FS*0.8);
+    }
+    const p=typed.replace(/\s/g,'').length/LIMIT;
+    ctx.globalAlpha=0.07+p*0.13;
+    ctx.fillStyle='#b0a898';
+    ctx.fillRect(0,0,W*p,1);
+    ctx.globalAlpha=1; ctx.fillStyle='#1e1a14';
+  }
+
+  ctx.textAlign='center';
+  layers.forEach(layer=>{
+    layer.chars.forEach(({body,ch})=>{
+      const {x,y}=body.position;
+      if(y>H+100) return;
+      ctx.save(); ctx.translate(x,y); ctx.rotate(body.angle);
+      ctx.globalAlpha=layer.alpha; ctx.fillStyle='#1e1a14'; ctx.font=FONT;
+      ctx.fillText(ch,0,0); ctx.restore();
+    });
+  });
+  ctx.globalAlpha=1; ctx.textAlign='left';
+
+  layers.forEach(l=>{
+    for(let i=l.chars.length-1;i>=0;i--){
+      if(l.chars[i].body.position.y>H+300){ World.remove(world,l.chars[i].body); l.chars.splice(i,1); }
+    }
+  });
+}
+draw();
+})();
+</script>
+</body>
+</html>
