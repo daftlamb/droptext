@@ -362,7 +362,7 @@ function draw(){
     if(blurPx>0) ctx.filter=`blur(${blurPx}px)`;
     layer.chars.forEach(({body,ch})=>{
       const {x,y}=body.position;
-      if(y>H+100) return;
+      if(y > window.innerHeight + 100) return;
       ctx.save(); ctx.translate(x,y); ctx.rotate(body.angle);
       ctx.globalAlpha=layer.alpha; ctx.fillStyle='#1e1a14'; ctx.font=FONT;
       ctx.fillText(ch,0,0); ctx.restore();
@@ -373,7 +373,7 @@ function draw(){
 
   layers.forEach(l=>{
     for(let i=l.chars.length-1;i>=0;i--){
-      if(l.chars[i].body.position.y>H+300){ World.remove(world,l.chars[i].body); l.chars.splice(i,1); }
+      if(l.chars[i].body.position.y > window.innerHeight + 300){ World.remove(world,l.chars[i].body); l.chars.splice(i,1); }
     }
   });
 }
