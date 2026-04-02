@@ -24,7 +24,7 @@ body{
 }
 body.animation-ready{animation-play-state:running;animation-duration:1s;animation-name:sunrise;}
 body.animation-ready.dark{animation-duration:1.7s;animation-name:sunset;}
-body.rainy{--light:#e8eaed;}
+body.rainy{--light:#d6dde8;}
 body.dark{--light:var(--night);--dark-col:var(--day);--shadow:#030307;--bounce-light:#1b293f;}
 @keyframes sunrise{0%{background-color:var(--night)}10%{background-color:var(--dawn)}35%{background-color:var(--morning)}100%{background-color:var(--day)}}
 @keyframes sunset{0%{background-color:var(--day)}30%{background-color:var(--evening)}60%{background-color:var(--dusk)}90%{background-color:var(--dawn)}100%{background-color:var(--night)}}
@@ -157,7 +157,7 @@ window.addEventListener('resize', resize);
 const THEMES = {
   light: { bg:'#f7f5f0', ink:'#1e1a14', progress:'#b0a898', fakeBg:'#f7f5f0' },
   dark:  { bg:'#151311', ink:'#e8e4dc', progress:'#4a4640', fakeBg:'#151311' },
-  rain:  { bg:'#e8eaed', ink:'#2a2d33', progress:'#8a9099', fakeBg:'#e8eaed' },
+  rain:  { bg:'#d6dde8', ink:'#2a2d33', progress:'#7a8899', fakeBg:'#d6dde8' },
 };
 // init sunlit shutters
 (function(){
@@ -332,37 +332,61 @@ function playThud(){
   const cx=cv.getContext('2d');
   const drops=[];
   const splashes=[];
-  function fit(){ cv.width=innerWidth; cv.height=innerHeight; }
+  // slow drifting clouds
+  const clouds=[];
+  function fit(){
+    cv.width=innerWidth; cv.height=innerHeight;
+    drops.length=0; clouds.length=0;
+    for(let i=0;i<80;i++) drops.push({
+      x:Math.random()*cv.width, y:Math.random()*cv.height,
+      spd:5+Math.random()*4, len:8+Math.random()*10, alpha:0.10+Math.random()*0.10
+    });
+    for(let i=0;i<5;i++) clouds.push({
+      x:Math.random()*cv.width*1.5-cv.width*0.2,
+      y:cv.height*(0.05+Math.random()*0.25),
+      w:180+Math.random()*260, h:50+Math.random()*60,
+      spd:0.08+Math.random()*0.10, alpha:0.06+Math.random()*0.08
+    });
+  }
   addEventListener('resize',fit); fit();
-  for(let i=0;i<120;i++) drops.push({
-    x:Math.random()*innerWidth, y:Math.random()*innerHeight,
-    spd:8+Math.random()*6, len:10+Math.random()*14, alpha:0.12+Math.random()*0.12
-  });
   function tick(){
     requestAnimationFrame(tick);
     const w=cv.width,h=cv.height;
     cx.clearRect(0,0,w,h);
+    // draw clouds
+    clouds.forEach(c=>{
+      const grd=cx.createRadialGradient(c.x+c.w/2,c.y+c.h/2,0,c.x+c.w/2,c.y+c.h/2,c.w*0.6);
+      grd.addColorStop(0,`rgba(255,255,255,${c.alpha})`);
+      grd.addColorStop(1,'rgba(255,255,255,0)');
+      cx.fillStyle=grd;
+      cx.beginPath();
+      cx.ellipse(c.x+c.w/2,c.y+c.h/2,c.w/2,c.h/2,0,0,Math.PI*2);
+      cx.fill();
+      c.x+=c.spd;
+      if(c.x>w+c.w) c.x=-c.w;
+    });
+    // draw drops
     drops.forEach(d=>{
       cx.beginPath();
       cx.moveTo(d.x,d.y);
-      cx.lineTo(d.x-d.len*0.18, d.y-d.len);
-      cx.strokeStyle=`rgba(160,175,195,${d.alpha})`;
-      cx.lineWidth=0.8;
+      cx.lineTo(d.x-d.len*0.15,d.y-d.len);
+      cx.strokeStyle=`rgba(140,165,200,${d.alpha})`;
+      cx.lineWidth=0.7;
       cx.stroke();
       d.y+=d.spd;
       if(d.y>h+20){
-        splashes.push({x:d.x,y:h-4,r:0,alpha:0.25});
+        splashes.push({x:d.x,y:h-4,r:0,alpha:0.20});
         d.x=Math.random()*w; d.y=-20;
       }
     });
     for(let i=splashes.length-1;i>=0;i--){
       const s=splashes[i];
       cx.beginPath();
-      cx.ellipse(s.x,s.y,s.r*2.5,s.r*0.6,0,0,Math.PI*2);
-      cx.strokeStyle=`rgba(140,160,185,${s.alpha})`;
-      cx.lineWidth=0.6;
+      cx.ellipse(s.x,s.y,s.r*2.2,s.r*0.5,0,0,Math.PI*2);
+      cx.strokeStyle=`rgba(130,155,190,${s.alpha})`;
+      cx.lineWidth=0.5;
       cx.stroke();
-      s.r+=0.8; s.alpha-=0.025;
+      s.r+=0.6; s.alpha-=0.018;
       if(s.alpha<=0) splashes.splice(i,1);
     }
   }
@@ -377,10 +401,10 @@ function playThud(){
   function fit(){
     cv.width=innerWidth; cv.height=innerHeight;
     stars.length=0;
-    for(let i=0;i<220;i++) stars.push({
-      x:Math.random()*cv.width, y:Math.random()*cv.height*0.75,
-      r:Math.random()*1.2+0.2, base:Math.random()*0.5+0.3,
-      phase:Math.random()*Math.PI*2, spd:0.5+Math.random()*1.5
+    for(let i=0;i<80;i++) stars.push({
+      x:Math.random()*cv.width, y:Math.random()*cv.height*0.80,
+      r:Math.random()*1.0+0.15, base:Math.random()*0.35+0.25,
+      phase:Math.random()*Math.PI*2, spd:0.08+Math.random()*0.25
     });
   }
   addEventListener('resize',fit); fit();
@@ -389,10 +413,10 @@ function playThud(){
     const w=cv.width,h=cv.height;
     cx.clearRect(0,0,w,h);
     stars.forEach(s=>{
-      const a=s.base+Math.sin(now*0.001*s.spd+s.phase)*0.25;
+      const a=s.base+Math.sin(now*0.0003*s.spd+s.phase)*0.18;
       cx.beginPath();
       cx.arc(s.x,s.y,s.r,0,Math.PI*2);
-      cx.fillStyle=`rgba(220,225,240,${a})`;
+      cx.fillStyle=`rgba(210,218,238,${a})`;
       cx.fill();
     });
   }
@@ -422,32 +446,38 @@ function stopRainSound(){
   setTimeout(()=>{ try{rainNode.stop();}catch(e){} rainNode=null; rainGain=null; },1200);
 }
 
-// ── Cicada sound ──
-let cicadaNode=null, cicadaGain=null;
-function startCicadaSound(){
-  if(muted||cicadaNode) return;
+// ── Cricket sound (偶尔蛐蛐叫) ──
+let cricketTimer=null;
+function playCricket(){
+  if(muted) return;
   try{
     const a=getAC();
-    const buf=a.createBuffer(1,a.sampleRate*4,a.sampleRate);
-    const d=buf.getChannelData(0);
-    // modulated high-freq noise → cicada texture
-    for(let i=0;i<d.length;i++){
-      const t=i/a.sampleRate;
-      const mod=0.5+0.5*Math.sin(2*Math.PI*3.5*t)*Math.sin(2*Math.PI*1.2*t);
-      d[i]=(Math.random()*2-1)*mod;
+    // one chirp = 3 quick pulses
+    const chirpDur=0.06, gap=0.07, pulses=3;
+    for(let p=0;p<pulses;p++){
+      const t=a.currentTime+p*(chirpDur+gap);
+      const buf=a.createBuffer(1,Math.floor(a.sampleRate*chirpDur),a.sampleRate);
+      const d=buf.getChannelData(0);
+      for(let i=0;i<d.length;i++){
+        const env=Math.sin(Math.PI*i/d.length);
+        d[i]=(Math.random()*2-1)*env*0.4;
+      }
+      const src=a.createBufferSource(); src.buffer=buf;
+      const f=a.createBiquadFilter(); f.type='bandpass'; f.frequency.value=4800+Math.random()*400; f.Q.value=12;
+      const g=a.createGain(); g.gain.value=0.08;
+      src.connect(f); f.connect(g); g.connect(a.destination);
+      src.start(t);
     }
-    cicadaNode=a.createBufferSource(); cicadaNode.buffer=buf; cicadaNode.loop=true;
-    const f=a.createBiquadFilter(); f.type='bandpass'; f.frequency.value=4200; f.Q.value=2;
-    cicadaGain=a.createGain(); cicadaGain.gain.setValueAtTime(0,a.currentTime);
-    cicadaGain.gain.linearRampToValueAtTime(0.04,a.currentTime+2);
-    cicadaNode.connect(f); f.connect(cicadaGain); cicadaGain.connect(a.destination);
-    cicadaNode.start();
   }catch(e){}
 }
+function startCicadaSound(){
+  if(cricketTimer) return;
+  playCricket();
+  function schedule(){ cricketTimer=setTimeout(()=>{ playCricket(); schedule(); }, 2500+Math.random()*4000); }
+  schedule();
+}
 function stopCicadaSound(){
-  if(!cicadaNode) return;
-  try{ cicadaGain.gain.linearRampToValueAtTime(0,cicadaGain.context.currentTime+1); }catch(e){}
-  setTimeout(()=>{ try{cicadaNode.stop();}catch(e){} cicadaNode=null; cicadaGain=null; },1200);
+  if(cricketTimer){ clearTimeout(cricketTimer); cricketTimer=null; }
 }
 
 document.getElementById('btn-mute').addEventListener('click',()=>{
