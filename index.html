@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Drop Text</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400&family=Instrument+Serif&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;overflow:hidden;background:#f7f5f0;}
@@ -19,6 +19,7 @@ canvas{position:fixed;inset:0;}
 #btn-reset:hover{color:#888;}
 #btn-mute{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));cursor:pointer;}
 #btn-mute:hover{color:#888;}
+#title{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Instrument Serif',serif;font-size:clamp(28px,8vw,52px);color:#c8c0b4;pointer-events:none;letter-spacing:0.02em;transition:opacity .6s;}
 </style>
 </head>
 <body>
@@ -26,6 +27,7 @@ canvas{position:fixed;inset:0;}
 <div id="hint">开始输入…</div>
 <button id="btn-reset">清空</button>
 <button id="btn-mute">音效</button>
+<div id="title">Drop Text</div>
 <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
 <script>
 (function(){
@@ -40,7 +42,7 @@ const vv  = window.visualViewport;
 function resize(){
   W = vv ? vv.width  : window.innerWidth;
   H = vv ? vv.height : window.innerHeight;
-  floorY = H - 8; // tight to keyboard top
+  floorY = H - 2; // flush to keyboard top
   canvas.width  = Math.round(W * DPR);
   canvas.height = Math.round(H * DPR);
   canvas.style.width  = W + 'px';
@@ -119,10 +121,13 @@ function buildCpos(){
   });
 }
 
+const titleEl = document.getElementById('title');
 function update(){
   if(lockInput) return;
   lines=wrap(typed);
   buildCpos();
+  // fade out title when user starts typing
+  titleEl.style.opacity = typed.length > 0 ? '0' : '1';
   const charCount = typed.replace(/\s/g,'').length;
   const lineCount = lines.filter(l=>l.trim().length>0).length;
   if(charCount>=LIMIT || lineCount>=6){
@@ -269,13 +274,15 @@ ime.focus();
 let composing=false;
 ime.addEventListener('compositionstart',()=>{ composing=true; });
 ime.addEventListener('compositionupdate',()=>{ playKey(); });
-ime.addEventListener('compositionend',e=>{
-  composing=false;
-  const val=e.data||'';
+ime.addEventListener('compositionend',()=>{ composing=false; });
+// use input event to capture committed text (works for both IME and direct input)
+ime.addEventListener('input',()=>{
+  if(composing) return; // still mid-composition
+  if(lockInput) return;
+  const val=ime.value;
   ime.value='';
-  if(lockInput||!val) return;
-  if(Date.now()-lastFocusTime<100) return; // ignore IME events right after focus
-  typed+=val; update();
+  if(!val) return;
+  typed+=val; playKey(); update();
 });
 
 window.addEventListener('keydown',e=>{
@@ -304,6 +311,7 @@ document.getElementById('btn-reset').addEventListener('click',()=>{
   phase='typing';shakeTick=0;lockInput=false;
   ime.value='';composing=false;
   hint.style.opacity='1'; hint.textContent='开始输入…';
+  titleEl.style.opacity='1';
 });
 
 // ── Mouse ──
