@@ -33,10 +33,10 @@ canvas{position:fixed;inset:0;}
 <body>
 <canvas id="c"></canvas>
 <canvas id="overlay" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:50;mix-blend-mode:multiply;"></canvas>
-<div id="hint">开始输入…</div>
-<button id="btn-reset">清空</button>
-<button id="btn-mute">音效</button>
-<button id="btn-dark">明</button>
+<div id="hint">typing…</div>
+<button id="btn-reset" onmousedown="event.preventDefault()" ontouchstart="event.stopPropagation()">reset</button>
+<button id="btn-mute" onmousedown="event.preventDefault()" ontouchstart="event.stopPropagation()">sound</button>
+<button id="btn-dark" onmousedown="event.preventDefault()" ontouchstart="event.stopPropagation()">B</button>
 <div id="title">Drop Text</div>
 <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
 <script>
@@ -99,7 +99,7 @@ const THEMES = {
   dark:  { bg:'#151311', ink:'#e8e4dc', progress:'#4a4640', ui:'#5a5652', fakeBg:'#151311' },
 };
 // modes: 0=明(light), 1=晴(light+sunny), 2=暗(dark)
-const MODES = ['明','晴','暗'];
+const MODES = ['B','S','N'];
 let modeIdx = 0;
 let T = THEMES.light;
 document.getElementById('btn-dark').addEventListener('click',()=>{
@@ -215,7 +215,7 @@ function finishDrop(){
   typed=''; lines=[''];cpos=[];
   phase='typing'; shakeTick=0;
   lockInput=false;
-  setTimeout(()=>{ hint.style.opacity='1'; hint.textContent='继续写…'; },900);
+  setTimeout(()=>{ hint.style.opacity='1'; hint.textContent='keep writing…'; },900);
 }
 
 // ── Audio ──
@@ -342,7 +342,7 @@ document.getElementById('btn-reset').addEventListener('click',()=>{
   typed='';lines=[''];cpos=[];
   phase='typing';shakeTick=0;lockInput=false;
   ime.value='';composing=false;
-  hint.style.opacity='1'; hint.textContent='开始输入…';
+  hint.style.opacity='1'; hint.textContent='type something…';
   titleEl.style.opacity='1';
 });
 
