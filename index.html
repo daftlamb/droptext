@@ -36,7 +36,7 @@ canvas{position:fixed;inset:0;}
 <div id="hint">开始输入…</div>
 <button id="btn-reset">清空</button>
 <button id="btn-mute">音效</button>
-<button id="btn-dark">☀️</button>
+<button id="btn-dark">明</button>
 <div id="title">Drop Text</div>
 <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
 <script>
@@ -98,14 +98,17 @@ const THEMES = {
   light: { bg:'#f7f5f0', ink:'#1e1a14', progress:'#b0a898', ui:'#c8c0b4', fakeBg:'#f7f5f0' },
   dark:  { bg:'#151311', ink:'#e8e4dc', progress:'#4a4640', ui:'#5a5652', fakeBg:'#151311' },
 };
-let dark = false;
+// modes: 0=明(light), 1=晴(light+sunny), 2=暗(dark)
+const MODES = ['明','晴','暗'];
+let modeIdx = 0;
 let T = THEMES.light;
 document.getElementById('btn-dark').addEventListener('click',()=>{
-  dark = !dark;
-  T = dark ? THEMES.dark : THEMES.light;
+  modeIdx = (modeIdx + 1) % 3;
+  if(modeIdx === 0){ T = THEMES.light; if(window._sunnySetFade) window._sunnySetFade(0); }
+  if(modeIdx === 1){ T = THEMES.light; if(window._sunnySetFade) window._sunnySetFade(1); }
+  if(modeIdx === 2){ T = THEMES.dark;  if(window._sunnySetFade) window._sunnySetFade(0); }
   document.body.style.background = T.bg;
-  document.getElementById('btn-dark').textContent = dark ? '☀️' : '🌙';
-  if(window._sunnySetFade) window._sunnySetFade(dark ? 0 : 1);
+  document.getElementById('btn-dark').textContent = MODES[modeIdx];
 });
 
 const FS    = 20;
@@ -429,7 +432,7 @@ document.fonts.ready.then(()=>{ mc.font = FONT; draw(); });
 (function(){
   const C=document.getElementById('overlay');
   const X=C.getContext('2d');
-  let fadeVal=0,fadeTarget=1,lastTime=0;
+  let fadeVal=0,fadeTarget=0,lastTime=0;
 
   function fit(){ C.width=innerWidth; C.height=innerHeight; }
   addEventListener('resize',fit); fit();
