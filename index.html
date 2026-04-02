@@ -349,7 +349,7 @@ function playThud(){
     drops.length=0;
     for(let i=0;i<60;i++) drops.push({
       x:Math.random()*cv.width, y:Math.random()*cv.height,
-      spd:4+Math.random()*3, len:8+Math.random()*10, alpha:0.15+Math.random()*0.12
+      spd:4+Math.random()*3, len:10+Math.random()*12, alpha:0.28+Math.random()*0.22
     });
   }
   addEventListener('resize',fit); fit();
@@ -375,7 +375,7 @@ function playThud(){
     // drops
     drops.forEach(d=>{
       cx.beginPath(); cx.moveTo(d.x,d.y); cx.lineTo(d.x-d.len*0.15,d.y-d.len);
-      cx.strokeStyle=`rgba(100,140,180,${d.alpha})`; cx.lineWidth=0.8; cx.stroke();
+      cx.strokeStyle=`rgba(60,100,150,${d.alpha})`; cx.lineWidth=1.2; cx.stroke();
       d.y+=d.spd;
       if(d.y>h+20){ splashes.push({x:d.x,y:h-4,r:0,alpha:0.25}); d.x=Math.random()*w; d.y=-20; }
     });
