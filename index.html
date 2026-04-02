@@ -348,9 +348,17 @@ function draw(){
       ctx.fillText(ch,x-w/2+dx,y+dy);
     });
     if(phase==='typing'){
-      const last=cpos[cpos.length-1];
-      const cx=last?last.x+last.w/2+2:PX;
-      const cy=last?last.y:PY+FS*0.55;
+      const lastLine = lines[lines.length-1];
+      const last = cpos[cpos.length-1];
+      let cx, cy;
+      if(lastLine==='' || lastLine===undefined){
+        // cursor at start of new empty line
+        cx = PX;
+        cy = PY + (lines.length-1)*LH + FS*0.55;
+      } else {
+        cx = last ? last.x+last.w/2+2 : PX;
+        cy = last ? last.y : PY+FS*0.55;
+      }
       if(Math.floor(tick/28)%2===0) ctx.fillRect(cx,cy-FS*0.4,1.5,FS*0.8);
     }
     const p=typed.replace(/\s/g,'').length/LIMIT;
