@@ -43,15 +43,12 @@ function getSize(){
 }
 function resize(){
   getSize();
-  canvas.width  = W;
-  canvas.height = H;
-  // scale canvas for device pixel ratio (sharp on retina/mobile)
   const dpr = window.devicePixelRatio || 1;
   canvas.width  = Math.round(W * dpr);
   canvas.height = Math.round(H * dpr);
   canvas.style.width  = W + 'px';
   canvas.style.height = H + 'px';
-  ctx.scale(dpr, dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   rebuildWalls();
   alignButtons();
 }
@@ -273,14 +270,13 @@ window.addEventListener('keydown',e=>{
 });
 
 // ── Input — touch keyboard (mobile) ──
-// Tap canvas → focus hidden textarea to bring up keyboard
-canvas.addEventListener('click',()=>{ ime.focus(); });
-canvas.addEventListener('touchend',e=>{
-  e.preventDefault();
-  ime.focus();
-  // resume AudioContext on first touch (mobile policy)
+// focus ime on tap/click anywhere
+window.addEventListener('click',()=>ime.focus());
+window.addEventListener('touchend',e=>{
+  // only resume audio and focus — don't preventDefault
   getAC();
-},{ passive:false });
+  ime.focus();
+},{passive:true});
 
 // ── Touch drag for physics bodies ──
 let touchBody=null, touchOffset={x:0,y:0};
