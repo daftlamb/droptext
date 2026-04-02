@@ -34,12 +34,11 @@ canvas#c{position:fixed;inset:0;background:transparent;z-index:1;}
 #dappled-light{pointer-events:none;position:fixed;height:100vh;width:100vw;z-index:2;display:none;}
 body.sunny #dappled-light{display:block;}
 #progressive-blur{position:absolute;height:100%;width:100%;}
-/* blur increases left→right: right edge is blurry, left edge is sharp */
-#progressive-blur>div{position:absolute;height:100%;width:100%;inset:0;backdrop-filter:blur(var(--blur-amount));-webkit-backdrop-filter:blur(var(--blur-amount));mask-image:linear-gradient(to left,black var(--stop1),transparent var(--stop2));-webkit-mask-image:linear-gradient(to left,black var(--stop1),transparent var(--stop2));}
-#progressive-blur>div:nth-child(1){--blur-amount:4px; --stop1:100%;--stop2:55%;}
-#progressive-blur>div:nth-child(2){--blur-amount:12px;--stop1:85%; --stop2:45%;}
-#progressive-blur>div:nth-child(3){--blur-amount:32px;--stop1:70%; --stop2:35%;}
-#progressive-blur>div:nth-child(4){--blur-amount:64px;--stop1:55%; --stop2:20%;}
+/* remove progressive-blur, use a soft fade mask instead */
+#progressive-blur{display:none;}
+/* soft fade: left side fades to transparent */
+#dappled-light::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(to right, var(--day) 0%, rgba(247,245,240,0.85) 18%, rgba(247,245,240,0.4) 35%, transparent 55%);z-index:10;}
+body.dark #dappled-light::after{background:linear-gradient(to right, var(--night) 0%, rgba(21,19,17,0.85) 18%, rgba(21,19,17,0.4) 35%, transparent 55%);}
 #glow{position:absolute;background:linear-gradient(309deg,var(--bounce-light),var(--bounce-light) 20%,transparent);transition:background 1.0s var(--timing-fn);height:100%;width:100%;opacity:0.35;mix-blend-mode:multiply;}
 #glow-bounce{position:absolute;background:linear-gradient(355deg,var(--bounce-light) 0%,transparent 30%);transition:background 1.0s var(--timing-fn);opacity:0.35;height:100%;width:100%;bottom:0;mix-blend-mode:multiply;}
 .perspective{position:absolute;transition:transform 1.7s var(--timing-fn),opacity 1s ease;top:-30vh;right:0;width:80vw;height:130vh;opacity:1;transform-origin:top right;transform:matrix3d(0.7500,-0.0625,0,0.0008,0,1,0,0,0,0,1,0,0,0,0,1);}
