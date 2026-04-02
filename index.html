@@ -442,27 +442,51 @@ function playThud(){
 })();
 
 // ── Rain sound ──
-let rainNode=null, rainGain=null;
-function startRainSound(){
-  if(muted||rainNode) return;
+let rainTimers=[], rainBgNode=null, rainBgGain=null;
+function playRainDrop(){
+  if(muted) return;
   try{
+    const a=getAC();
+    const dur=0.18+Math.random()*0.12;
+    const buf=a.createBuffer(1,Math.floor(a.sampleRate*dur),a.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3);
+    const src=a.createBufferSource(); src.buffer=buf;
+    const f=a.createBiquadFilter(); f.type='bandpass';
+    f.frequency.value=900+Math.random()*600; f.Q.value=3+Math.random()*4;
+    const g=a.createGain();
+    g.gain.setValueAtTime(0.05+Math.random()*0.06, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime+dur);
+    src.connect(f); f.connect(g); g.connect(a.destination); src.start();
+  }catch(e){}
+}
+function startRainSound(){
+  if(rainBgNode) return;
+  try{
+    // very faint background drizzle
     const a=getAC();
     const buf=a.createBuffer(1,a.sampleRate*2,a.sampleRate);
     const d=buf.getChannelData(0);
     for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
-    rainNode=a.createBufferSource(); rainNode.buffer=buf; rainNode.loop=true;
-    const f=a.createBiquadFilter(); f.type='highpass'; f.frequency.value=2400; f.Q.value=0.6;
-    const f2=a.createBiquadFilter(); f2.type='lowpass'; f2.frequency.value=6000;
-    rainGain=a.createGain(); rainGain.gain.setValueAtTime(0,a.currentTime);
-    rainGain.gain.linearRampToValueAtTime(0.022,a.currentTime+1.5);
-    rainNode.connect(f); f.connect(f2); f2.connect(rainGain); rainGain.connect(a.destination);
-    rainNode.start();
+    rainBgNode=a.createBufferSource(); rainBgNode.buffer=buf; rainBgNode.loop=true;
+    const f=a.createBiquadFilter(); f.type='highpass'; f.frequency.value=3000; f.Q.value=0.5;
+    rainBgGain=a.createGain(); rainBgGain.gain.setValueAtTime(0,a.currentTime);
+    rainBgGain.gain.linearRampToValueAtTime(0.008,a.currentTime+2);
+    rainBgNode.connect(f); f.connect(rainBgGain); rainBgGain.connect(a.destination);
+    rainBgNode.start();
   }catch(e){}
+  // schedule individual drops
+  function schedDrop(){
+    playRainDrop();
+    const t=rainTimers.push(setTimeout(schedDrop, 300+Math.random()*900));
+  }
+  schedDrop();
 }
 function stopRainSound(){
-  if(!rainNode) return;
-  try{ rainGain.gain.linearRampToValueAtTime(0,rainGain.context.currentTime+1); }catch(e){}
-  setTimeout(()=>{ try{rainNode.stop();}catch(e){} rainNode=null; rainGain=null; },1200);
+  rainTimers.forEach(clearTimeout); rainTimers=[];
+  if(!rainBgNode) return;
+  try{ rainBgGain.gain.linearRampToValueAtTime(0,rainBgGain.context.currentTime+1); }catch(e){}
+  setTimeout(()=>{ try{rainBgNode.stop();}catch(e){} rainBgNode=null; rainBgGain=null; },1200);
 }
 
 // ── Cricket + wind sound ──
