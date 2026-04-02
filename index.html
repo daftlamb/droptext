@@ -452,28 +452,31 @@ function playCricket(){
   if(muted) return;
   try{
     const a=getAC();
-    // one chirp = 3 quick pulses
-    const chirpDur=0.06, gap=0.07, pulses=3;
+    const pulses=4, chirpDur=0.025, gap=0.035;
     for(let p=0;p<pulses;p++){
-      const t=a.currentTime+p*(chirpDur+gap);
-      const buf=a.createBuffer(1,Math.floor(a.sampleRate*chirpDur),a.sampleRate);
-      const d=buf.getChannelData(0);
-      for(let i=0;i<d.length;i++){
-        const env=Math.sin(Math.PI*i/d.length);
-        d[i]=(Math.random()*2-1)*env*0.4;
-      }
-      const src=a.createBufferSource(); src.buffer=buf;
-      const f=a.createBiquadFilter(); f.type='bandpass'; f.frequency.value=4800+Math.random()*400; f.Q.value=12;
-      const g=a.createGain(); g.gain.value=0.08;
-      src.connect(f); f.connect(g); g.connect(a.destination);
-      src.start(t);
+      const t=a.currentTime+p*(chirpDur+gap)+0.01;
+      // each pulse: osc at ~5.5kHz + slight FM for texture
+      const osc=a.createOscillator();
+      osc.type='sine';
+      osc.frequency.value=5500+Math.random()*300;
+      const fm=a.createOscillator(); fm.type='sine'; fm.frequency.value=180;
+      const fmGain=a.createGain(); fmGain.gain.value=280;
+      fm.connect(fmGain); fmGain.connect(osc.frequency);
+      const env=a.createGain();
+      env.gain.setValueAtTime(0,t);
+      env.gain.linearRampToValueAtTime(0.09,t+0.004);
+      env.gain.exponentialRampToValueAtTime(0.0001,t+chirpDur);
+      const f=a.createBiquadFilter(); f.type='bandpass'; f.frequency.value=5500; f.Q.value=18;
+      osc.connect(f); f.connect(env); env.connect(a.destination);
+      fm.start(t); osc.start(t);
+      fm.stop(t+chirpDur); osc.stop(t+chirpDur);
     }
   }catch(e){}
 }
 function startCicadaSound(){
   if(cricketTimer) return;
   playCricket();
-  function schedule(){ cricketTimer=setTimeout(()=>{ playCricket(); schedule(); }, 2500+Math.random()*4000); }
+  function schedule(){ cricketTimer=setTimeout(()=>{ playCricket(); schedule(); }, 2000+Math.random()*5000); }
   schedule();
 }
 function stopCicadaSound(){
