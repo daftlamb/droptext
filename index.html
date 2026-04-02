@@ -206,6 +206,7 @@ ime.setAttribute('autocomplete','off'); ime.setAttribute('autocorrect','off');
 ime.setAttribute('autocapitalize','off'); ime.setAttribute('spellcheck','false');
 document.body.appendChild(ime);
 window.addEventListener('click',()=>ime.focus());
+window.addEventListener('touchstart',()=>{ if(ac&&ac.state==='suspended') ac.resume(); ime.focus(); },{passive:true});
 ime.focus();
 
 let composing=false;
