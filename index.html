@@ -58,14 +58,8 @@ function resize(){
 }
 function alignButtons(){
   const px = Math.round(W * 0.1) + 'px';
-  const btm = (H - (vv ? vv.offsetTop + vv.height : H) + 20) + 'px'; // always above keyboard
-  document.getElementById('btn-mute').style.left   = px;
-  document.getElementById('btn-reset').style.right  = px;
-  // align hint + buttons to same bottom baseline
-  const fixedBtm = 'calc(20px + env(safe-area-inset-bottom))';
-  document.getElementById('btn-reset').style.bottom = fixedBtm;
-  document.getElementById('btn-mute').style.bottom  = fixedBtm;
-  document.getElementById('hint').style.bottom      = fixedBtm;
+  document.getElementById('btn-mute').style.left  = px;
+  document.getElementById('btn-reset').style.right = px;
 }
 if(vv){ vv.addEventListener('resize', resize); vv.addEventListener('scroll', resize); }
 window.addEventListener('resize', resize);
@@ -245,6 +239,7 @@ function findBodyNear(tx,ty){
   let best=null, bestD=Infinity;
   layers.forEach(layer=>{
     layer.chars.forEach(({body})=>{
+      if(body.position.y > H + 50) return; // ignore chars below visible area
       const dx=body.position.x-tx, dy=body.position.y-ty;
       const d=Math.sqrt(dx*dx+dy*dy);
       if(d<40&&d<bestD){ bestD=d; best=body; }
