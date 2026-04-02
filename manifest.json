@@ -1,0 +1,22 @@
+{
+  "name": "Drop Text",
+  "short_name": "Drop Text",
+  "description": "Type until it falls.",
+  "start_url": "/",
+  "display": "fullscreen",
+  "background_color": "#f7f5f0",
+  "theme_color": "#f7f5f0",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
