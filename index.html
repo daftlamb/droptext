@@ -2,22 +2,22 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Drop Text</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;overflow:hidden;background:#f7f5f0;}
-canvas{position:fixed;inset:0;touch-action:none;}
+canvas{position:fixed;inset:0;}
 #hint,#btn-reset,#btn-mute{
   font-family:'Noto Serif SC',Georgia,serif;
   font-size:11px;letter-spacing:2px;color:#c8c0b4;
-  background:none;border:none;-webkit-tap-highlight-color:transparent;
+  background:none;border:none;
 }
-#hint{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);pointer-events:none;transition:opacity .8s;white-space:nowrap;}
-#btn-reset{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));cursor:pointer;}
+#hint{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);pointer-events:none;transition:opacity .8s;white-space:nowrap;}
+#btn-reset{position:fixed;bottom:20px;right:28px;cursor:pointer;}
 #btn-reset:hover{color:#888;}
-#btn-mute{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));cursor:pointer;}
+#btn-mute{position:fixed;bottom:20px;left:28px;cursor:pointer;}
 #btn-mute:hover{color:#888;}
 </style>
 </head>
@@ -29,72 +29,39 @@ canvas{position:fixed;inset:0;touch-action:none;}
 <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
 <script>
 (function(){
-const { Engine, Bodies, Body, World, Mouse, MouseConstraint, Constraint, Events } = Matter;
+const { Engine, Bodies, Body, World, Mouse, MouseConstraint, Constraint } = Matter;
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const hint = document.getElementById('hint');
 
-// ── Size — use visualViewport on mobile to avoid keyboard resize jumps ──
-const vv = window.visualViewport;
 let W, H;
-function getSize(){
-  W = vv ? vv.width  : window.innerWidth;
-  H = vv ? vv.height : window.innerHeight;
-}
 function resize(){
-  getSize();
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width  = Math.round(W * dpr);
-  canvas.height = Math.round(H * dpr);
-  canvas.style.width  = W + 'px';
-  canvas.style.height = H + 'px';
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
   rebuildWalls();
-  alignButtons();
-}
-if(vv){
-  vv.addEventListener('resize', resize);
-  vv.addEventListener('scroll', resize);
-} else {
-  window.addEventListener('resize', resize);
-}
-resize();
-
-function alignButtons(){
-  const px = Math.round(W * 0.1) + 'px';
-  document.getElementById('btn-mute').style.left  = px;
-  document.getElementById('btn-reset').style.right = px;
 }
 
-// ── Physics ──
-const eng   = Engine.create({ gravity:{x:0,y:6}, enableSleeping:true });
+const eng  = Engine.create({ gravity:{x:0,y:4}, enableSleeping:true });
 const world = eng.world;
 let floor, wL, wR;
 function rebuildWalls(){
   if(floor) World.remove(world,[floor,wL,wR]);
-  const floorY = H - 55;
-  floor = Bodies.rectangle(W/2, floorY, W*3, 50, {isStatic:true,friction:12,restitution:0,frictionStatic:100,sleepThreshold:1});
-  wL    = Bodies.rectangle(-30,  H/2, 60, H*3, {isStatic:true});
+  floor = Bodies.rectangle(W/2, H-55, W*3, 50, {isStatic:true,friction:8,restitution:0,frictionStatic:30});
+  wL    = Bodies.rectangle(-30, H/2, 60, H*3, {isStatic:true});
   wR    = Bodies.rectangle(W+30, H/2, 60, H*3, {isStatic:true});
   World.add(world,[floor,wL,wR]);
 }
+resize();
+window.addEventListener('resize', resize);
 
-// ── Typography — responsive font size ──
-const BASE_FS = 20;
-function getFontSize(){ return Math.round(Math.max(16, Math.min(BASE_FS, W * 0.045))); }
-let FS   = getFontSize();
-let FONT = `${FS}px 'Noto Serif SC',Georgia,serif`;
-let PX, PY, LH;
-function updateMetrics(){
-  FS   = getFontSize();
-  FONT = `${FS}px 'Noto Serif SC',Georgia,serif`;
-  PX   = Math.round(W * 0.1);
-  PY   = Math.round(H * 0.1);
-  LH   = FS * 2.0;
-  mc.font = FONT;
-}
+const FS    = 20;
+const FONT  = `${FS}px 'Noto Serif SC',Georgia,serif`;
+const PX    = Math.round(window.innerWidth * 0.1);
+const PY    = 80;
+const LH    = FS * 2.0;
 const LIMIT = 80;
-const mc = document.createElement('canvas').getContext('2d');
+const mc    = document.createElement('canvas').getContext('2d');
+mc.font     = FONT;
 const NO_START = new Set('，。！？、：；」』）〕】〉》…—～'.split(''));
 function charW(ch){ return mc.measureText(ch).width; }
 
@@ -112,13 +79,12 @@ function wrap(t){
 }
 
 let typed='', lines=[''], cpos=[];
-let phase='typing';
+let phase='typing'; // typing | shaking | dropping
 let shakeTick=0, tick=0;
 const layers=[];
-let lockInput=false;
+let lockInput=false; // true during shaking+dropping
 
 function buildCpos(){
-  updateMetrics();
   cpos=[];
   lines.forEach((line,li)=>{
     let x=PX;
@@ -135,9 +101,7 @@ function update(){
   if(lockInput) return;
   lines=wrap(typed);
   buildCpos();
-  const charCount = typed.replace(/\s/g,'').length;
-  const lineCount = lines.filter(l=>l.trim().length>0).length;
-  if(charCount>=LIMIT || lineCount>=6){
+  if(typed.replace(/\s/g,'').length>=LIMIT){
     lockInput=true;
     phase='shaking'; shakeTick=0;
     hint.textContent='…';
@@ -147,12 +111,12 @@ function update(){
   }
 }
 
-// ── Drop ──
+// ── Drop — all at once ──
 function startDrop(snap){
   phase='dropping';
   hint.style.opacity='0';
 
-  layers.forEach(l=>{ l.alpha=Math.max(0,l.alpha-0.25); });
+  layers.forEach(l=>{ l.alpha=Math.max(0,l.alpha-0.18); });
   for(let i=layers.length-1;i>=0;i--){
     if(layers[i].alpha<=0){ layers[i].chars.forEach(c=>World.remove(world,c.body)); layers.splice(i,1); }
   }
@@ -165,8 +129,8 @@ function startDrop(snap){
 
   snap.forEach(({ch,x,y,w})=>{
     const b=Bodies.rectangle(x,y,w,FS*0.9,{
-      restitution:0, friction:12, frictionAir:0.06, frictionStatic:100,
-      sleepThreshold:3, angle:(Math.random()-0.5)*0.05,
+      restitution:0,friction:8,frictionAir:0.15,frictionStatic:30,
+      sleepThreshold:15,angle:(Math.random()-0.5)*0.05,
     });
     Body.setVelocity(b,{x:(Math.random()-0.5)*3,y:0.5+Math.random()});
     b._ch=ch;
@@ -177,7 +141,7 @@ function startDrop(snap){
   for(let j=0;j<bodies.length-1;j++){
     World.add(world,Constraint.create({
       bodyA:bodies[j],bodyB:bodies[j+1],
-      length:1,stiffness:0.08,damping:0.1
+      length:10+Math.random()*8,stiffness:0.02,damping:0.06
     }));
   }
 
@@ -195,11 +159,7 @@ function finishDrop(){
 // ── Audio ──
 const AC=window.AudioContext||window.webkitAudioContext;
 let ac=null, muted=false;
-function getAC(){
-  if(!ac) ac=new AC();
-  if(ac.state==='suspended') ac.resume();
-  return ac;
-}
+function getAC(){ if(!ac) ac=new AC(); return ac; }
 function playKey(){
   if(muted) return;
   try{
@@ -237,12 +197,14 @@ document.getElementById('btn-mute').addEventListener('click',()=>{
   b.style.color=muted?'#ddd':'';
 });
 
-// ── Input — keyboard (desktop) ──
+// ── Input ──
 const ime=document.createElement('textarea');
 ime.style.cssText='position:fixed;top:-300px;left:0;width:200px;height:40px;opacity:0;font-size:16px;resize:none;';
 ime.setAttribute('autocomplete','off'); ime.setAttribute('autocorrect','off');
 ime.setAttribute('autocapitalize','off'); ime.setAttribute('spellcheck','false');
 document.body.appendChild(ime);
+window.addEventListener('click',()=>ime.focus());
+ime.focus();
 
 let composing=false;
 ime.addEventListener('compositionstart',()=>{ composing=true; });
@@ -254,6 +216,7 @@ ime.addEventListener('compositionend',e=>{
   if(lockInput||!val) return;
   typed+=val; update();
 });
+
 window.addEventListener('keydown',e=>{
   if(composing||lockInput) return;
   if(e.key==='Backspace'){
@@ -265,43 +228,12 @@ window.addEventListener('keydown',e=>{
   } else if(e.key.length===1&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!e.isComposing){
     e.preventDefault();
     const k=e.key;
-    setTimeout(()=>{ if(composing||lockInput) return; typed+=k; playKey(); update(); },0);
+    setTimeout(()=>{
+      if(composing||lockInput) return;
+      typed+=k; playKey(); update();
+    },0);
   }
 });
-
-// ── Input — touch keyboard (mobile) ──
-// focus ime on tap/click anywhere
-window.addEventListener('click',()=>ime.focus());
-window.addEventListener('touchend',e=>{
-  // only resume audio and focus — don't preventDefault
-  getAC();
-  ime.focus();
-},{passive:true});
-
-// ── Touch drag for physics bodies ──
-let touchBody=null, touchOffset={x:0,y:0};
-canvas.addEventListener('touchstart',e=>{
-  if(e.touches.length!==1) return;
-  const t=e.touches[0];
-  const tx=t.clientX, ty=t.clientY;
-  // find nearest body
-  let best=null, bestD=Infinity;
-  layers.forEach(layer=>{
-    layer.chars.forEach(({body})=>{
-      const dx=body.position.x-tx, dy=body.position.y-ty;
-      const d=Math.sqrt(dx*dx+dy*dy);
-      if(d<40&&d<bestD){ bestD=d; best=body; }
-    });
-  });
-  if(best){ touchBody=best; touchOffset={x:best.position.x-tx,y:best.position.y-ty}; }
-},{passive:true});
-canvas.addEventListener('touchmove',e=>{
-  if(!touchBody||e.touches.length!==1) return;
-  const t=e.touches[0];
-  Body.setPosition(touchBody,{x:t.clientX+touchOffset.x,y:t.clientY+touchOffset.y});
-  Body.setVelocity(touchBody,{x:0,y:0});
-},{passive:true});
-canvas.addEventListener('touchend',()=>{ touchBody=null; },{passive:true});
 
 // ── Reset ──
 document.getElementById('btn-reset').addEventListener('click',()=>{
@@ -313,7 +245,7 @@ document.getElementById('btn-reset').addEventListener('click',()=>{
   hint.style.opacity='1'; hint.textContent='开始输入…';
 });
 
-// ── Mouse (desktop drag) ──
+// ── Mouse ──
 const mouse=Mouse.create(canvas);
 const mcon=MouseConstraint.create(eng,{mouse,constraint:{stiffness:0.12,damping:0.1,render:{visible:false}}});
 World.add(world,mcon);
@@ -356,8 +288,6 @@ function draw(){
 
   ctx.textAlign='center';
   layers.forEach(layer=>{
-    const blurPx=Math.round((1-layer.alpha)*6);
-    if(blurPx>0) ctx.filter=`blur(${blurPx}px)`;
     layer.chars.forEach(({body,ch})=>{
       const {x,y}=body.position;
       if(y>H+100) return;
@@ -365,7 +295,6 @@ function draw(){
       ctx.globalAlpha=layer.alpha; ctx.fillStyle='#1e1a14'; ctx.font=FONT;
       ctx.fillText(ch,0,0); ctx.restore();
     });
-    ctx.filter='none';
   });
   ctx.globalAlpha=1; ctx.textAlign='left';
 
