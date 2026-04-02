@@ -35,7 +35,7 @@ canvas{position:fixed;inset:0;}
 <div id="hint">开始输入…</div>
 <button id="btn-reset">清空</button>
 <button id="btn-mute">音效</button>
-<button id="btn-dark">暗色</button>
+<button id="btn-dark">☀️</button>
 <div id="title">Drop Text</div>
 <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
 <script>
@@ -103,7 +103,7 @@ document.getElementById('btn-dark').addEventListener('click',()=>{
   dark = !dark;
   T = dark ? THEMES.dark : THEMES.light;
   document.body.style.background = T.bg;
-  document.getElementById('btn-dark').textContent = dark ? '亮色' : '暗色';
+  document.getElementById('btn-dark').textContent = dark ? '☀️' : '🌙';
 });
 
 const FS    = 20;
