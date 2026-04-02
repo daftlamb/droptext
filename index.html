@@ -58,10 +58,13 @@ body.sunny #dappled-light{display:block;}
   background:none;border:none;-webkit-tap-highlight-color:transparent;
   padding:0;z-index:200;position:fixed;
 }
-#hint{bottom:calc(22px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);pointer-events:none;transition:opacity .8s;white-space:nowrap;line-height:1;}
-#btn-reset{bottom:calc(20px + env(safe-area-inset-bottom));cursor:pointer;line-height:1;padding:0;vertical-align:bottom;display:block;}
+/* bottom bar */
+#bottom-bar{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));left:0;right:0;display:flex;align-items:baseline;justify-content:space-between;padding:0 10%;z-index:200;pointer-events:none;}
+#bottom-bar button{pointer-events:auto;}
+#hint{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);pointer-events:none;transition:opacity .8s;white-space:nowrap;line-height:1;z-index:200;}
+#btn-reset{cursor:pointer;line-height:1;padding:0;}
 #btn-reset:hover{color:#888;}
-#btn-mute{bottom:calc(20px + env(safe-area-inset-bottom));cursor:pointer;line-height:1;padding:0;vertical-align:bottom;display:block;}
+#btn-mute{cursor:pointer;line-height:1;padding:0;}
 #btn-mute:hover{color:#888;}
 #btn-dark{top:20px;right:20px;cursor:pointer;line-height:1;padding:4px 0;}
 #btn-dark:hover{color:#888;}
@@ -85,8 +88,10 @@ body.sunny #dappled-light{display:block;}
   <div class="perspective-blur"></div>
 </div>
 <div id="hint">typing…</div>
+<div id="bottom-bar">
 <button id="btn-reset" onmousedown="event.preventDefault()" ontouchstart="event.stopPropagation()">reset</button>
 <button id="btn-mute" onmousedown="event.preventDefault()" ontouchstart="event.stopPropagation()">sound</button>
+</div>
 <button id="btn-dark" onmousedown="event.preventDefault()" ontouchstart="event.stopPropagation()">B</button>
 <div id="title">Drop Text</div>
 <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
@@ -124,9 +129,7 @@ function resize(){
   alignButtons();
 }
 function alignButtons(){
-  const px = Math.round(W * 0.1) + 'px';
-  document.getElementById('btn-mute').style.left   = px;
-  document.getElementById('btn-reset').style.right  = px;
+  // layout handled by #bottom-bar flexbox
 }
 if(vv){ vv.addEventListener('resize', resize); vv.addEventListener('scroll', resize); }
 window.addEventListener('resize', resize);
