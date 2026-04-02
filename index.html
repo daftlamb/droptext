@@ -42,7 +42,7 @@ const vv  = window.visualViewport;
 function resize(){
   W = vv ? vv.width  : window.innerWidth;
   H = vv ? vv.height : window.innerHeight;
-  const newFloorY = H - 56; // above bottom bar
+  const newFloorY = H - 28; // above bottom bar
   // shift all existing bodies by the same delta as floor
   if(prevFloorY && Math.abs(newFloorY - prevFloorY) > 5){
     const dy = newFloorY - prevFloorY;
