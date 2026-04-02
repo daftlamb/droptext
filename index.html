@@ -41,12 +41,12 @@ function resize(){
   rebuildWalls();
 }
 
-const eng  = Engine.create({ gravity:{x:0,y:4}, enableSleeping:true });
+const eng  = Engine.create({ gravity:{x:0,y:6}, enableSleeping:true });
 const world = eng.world;
 let floor, wL, wR;
 function rebuildWalls(){
   if(floor) World.remove(world,[floor,wL,wR]);
-  floor = Bodies.rectangle(W/2, H-55, W*3, 50, {isStatic:true,friction:8,restitution:0,frictionStatic:30});
+  floor = Bodies.rectangle(W/2, H-55, W*3, 50, {isStatic:true,friction:12,restitution:0,frictionStatic:100,sleepThreshold:1});
   wL    = Bodies.rectangle(-30, H/2, 60, H*3, {isStatic:true});
   wR    = Bodies.rectangle(W+30, H/2, 60, H*3, {isStatic:true});
   World.add(world,[floor,wL,wR]);
@@ -101,7 +101,9 @@ function update(){
   if(lockInput) return;
   lines=wrap(typed);
   buildCpos();
-  if(typed.replace(/\s/g,'').length>=LIMIT){
+  const charCount = typed.replace(/\s/g,'').length;
+  const lineCount = lines.filter(l=>l.trim().length>0).length;
+  if(charCount>=LIMIT || lineCount>=6){
     lockInput=true;
     phase='shaking'; shakeTick=0;
     hint.textContent='…';
@@ -116,7 +118,7 @@ function startDrop(snap){
   phase='dropping';
   hint.style.opacity='0';
 
-  layers.forEach(l=>{ l.alpha=Math.max(0,l.alpha-0.18); });
+  layers.forEach(l=>{ l.alpha=Math.max(0,l.alpha-0.25); });
   for(let i=layers.length-1;i>=0;i--){
     if(layers[i].alpha<=0){ layers[i].chars.forEach(c=>World.remove(world,c.body)); layers.splice(i,1); }
   }
@@ -129,8 +131,8 @@ function startDrop(snap){
 
   snap.forEach(({ch,x,y,w})=>{
     const b=Bodies.rectangle(x,y,w,FS*0.9,{
-      restitution:0,friction:8,frictionAir:0.15,frictionStatic:30,
-      sleepThreshold:15,angle:(Math.random()-0.5)*0.05,
+      restitution:0, friction:12, frictionAir:0.06, frictionStatic:100,
+      sleepThreshold:3, angle:(Math.random()-0.5)*0.05,
     });
     Body.setVelocity(b,{x:(Math.random()-0.5)*3,y:0.5+Math.random()});
     b._ch=ch;
@@ -141,11 +143,11 @@ function startDrop(snap){
   for(let j=0;j<bodies.length-1;j++){
     World.add(world,Constraint.create({
       bodyA:bodies[j],bodyB:bodies[j+1],
-      length:10+Math.random()*8,stiffness:0.02,damping:0.06
+      length:1,stiffness:0.08,damping:0.1
     }));
   }
 
-  layers.push({chars:newChars,alpha:1.0});
+  layers.push({chars:newChars,alpha:1.0,blur:0});
   finishDrop();
 }
 
@@ -288,6 +290,9 @@ function draw(){
 
   ctx.textAlign='center';
   layers.forEach(layer=>{
+    // blur increases as alpha decreases (max 6px blur at alpha=0)
+    const blurPx = Math.round((1-layer.alpha)*6);
+    if(blurPx>0) ctx.filter=`blur(${blurPx}px)`;
     layer.chars.forEach(({body,ch})=>{
       const {x,y}=body.position;
       if(y>H+100) return;
@@ -295,6 +300,7 @@ function draw(){
       ctx.globalAlpha=layer.alpha; ctx.fillStyle='#1e1a14'; ctx.font=FONT;
       ctx.fillText(ch,0,0); ctx.restore();
     });
+    ctx.filter='none';
   });
   ctx.globalAlpha=1; ctx.textAlign='left';
 
