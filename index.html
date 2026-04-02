@@ -36,13 +36,24 @@ const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const hint = document.getElementById('hint');
 
-let W, H, floorY;
+let W, H, floorY, prevFloorY;
 const DPR = window.devicePixelRatio || 1;
 const vv  = window.visualViewport;
 function resize(){
   W = vv ? vv.width  : window.innerWidth;
   H = vv ? vv.height : window.innerHeight;
-  floorY = H - 48; // space for bottom bar only (vv already excludes keyboard)
+  const newFloorY = H - 48;
+  // shift all existing bodies by the same delta as floor
+  if(prevFloorY && Math.abs(newFloorY - prevFloorY) > 5){
+    const dy = newFloorY - prevFloorY;
+    layers.forEach(l=>l.chars.forEach(({body})=>{
+      Body.setPosition(body,{x:body.position.x, y:body.position.y + dy});
+      Body.setVelocity(body,{x:0,y:0});
+      Body.setAngularVelocity(body,0);
+    }));
+  }
+  floorY = newFloorY;
+  prevFloorY = floorY;
   canvas.width  = Math.round(W * DPR);
   canvas.height = Math.round(H * DPR);
   canvas.style.width  = W + 'px';
@@ -53,14 +64,8 @@ function resize(){
 }
 function alignButtons(){
   const px = Math.round(W * 0.1) + 'px';
-  const btm = (H - (vv ? vv.offsetTop + vv.height : H) + 20) + 'px'; // always above keyboard
   document.getElementById('btn-mute').style.left   = px;
   document.getElementById('btn-reset').style.right  = px;
-  // align hint + buttons to same bottom baseline
-  const fixedBtm = 'calc(20px + env(safe-area-inset-bottom))';
-  document.getElementById('btn-reset').style.bottom = fixedBtm;
-  document.getElementById('btn-mute').style.bottom  = fixedBtm;
-  document.getElementById('hint').style.bottom      = fixedBtm;
 }
 if(vv){ vv.addEventListener('resize', resize); vv.addEventListener('scroll', resize); }
 window.addEventListener('resize', resize);
