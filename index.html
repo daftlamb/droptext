@@ -24,13 +24,13 @@ body{
 }
 body.animation-ready{animation-play-state:running;animation-duration:1s;animation-name:sunrise;}
 body.animation-ready.dark{animation-duration:1.7s;animation-name:sunset;}
-body.rainy{--light:#bfcee0;}
+body.rainy{--light:#ccd8e5;}
 body.dark{--light:var(--night);--dark-col:var(--day);--shadow:#030307;--bounce-light:#1b293f;}
 @keyframes sunrise{0%{background-color:var(--night)}10%{background-color:var(--dawn)}35%{background-color:var(--morning)}100%{background-color:var(--day)}}
 @keyframes sunset{0%{background-color:var(--day)}30%{background-color:var(--evening)}60%{background-color:var(--dusk)}90%{background-color:var(--dawn)}100%{background-color:var(--night)}}
 
 canvas#c{position:fixed;inset:0;background:transparent;z-index:3;pointer-events:auto;}
-#cv-rain,#cv-night{pointer-events:none;position:fixed;inset:0;z-index:2;opacity:0;transition:opacity 1.5s ease;}
+#cv-rain,#cv-night{pointer-events:none;position:fixed;inset:0;width:100%;height:100%;z-index:2;opacity:0;transition:opacity 1.5s ease;}
 body.rainy  #cv-rain {opacity:1;}
 body.nightly #cv-night{opacity:1;}
 
@@ -157,7 +157,7 @@ window.addEventListener('resize', resize);
 const THEMES = {
   light: { bg:'#f7f5f0', ink:'#1e1a14', progress:'#b0a898', fakeBg:'#f7f5f0' },
   dark:  { bg:'#151311', ink:'#e8e4dc', progress:'#4a4640', fakeBg:'#151311' },
-  rain:  { bg:'#bfcee0', ink:'#2a2d33', progress:'#7a8899', fakeBg:'#bfcee0' },
+  rain:  { bg:'#ccd8e5', ink:'#2a2d33', progress:'#7a8899', fakeBg:'#ccd8e5' },
 };
 // init sunlit shutters
 (function(){
@@ -337,15 +337,15 @@ function playThud(){
   function fit(){
     cv.width=innerWidth; cv.height=innerHeight;
     drops.length=0; clouds.length=0;
-    for(let i=0;i<45;i++) drops.push({
+    for(let i=0;i<30;i++) drops.push({
       x:Math.random()*cv.width, y:Math.random()*cv.height,
-      spd:4+Math.random()*3, len:6+Math.random()*8, alpha:0.07+Math.random()*0.07
+      spd:3+Math.random()*3, len:5+Math.random()*7, alpha:0.05+Math.random()*0.06
     });
-    for(let i=0;i<6;i++) clouds.push({
+    for(let i=0;i<7;i++) clouds.push({
       x:Math.random()*cv.width*1.5-cv.width*0.2,
-      y:cv.height*(0.03+Math.random()*0.22),
-      w:220+Math.random()*320, h:60+Math.random()*80,
-      spd:0.06+Math.random()*0.08, alpha:0.18+Math.random()*0.14
+      y:cv.height*(0.02+Math.random()*0.20),
+      w:280+Math.random()*380, h:80+Math.random()*100,
+      spd:0.05+Math.random()*0.07, alpha:0.32+Math.random()*0.20
     });
   }
   addEventListener('resize',fit); fit();
@@ -403,7 +403,7 @@ function playThud(){
     stars.length=0;
     for(let i=0;i<80;i++) stars.push({
       x:Math.random()*cv.width, y:Math.random()*cv.height*0.80,
-      r:Math.random()*1.0+0.15, base:Math.random()*0.35+0.25,
+      r:Math.random()*1.3+0.3, base:Math.random()*0.5+0.4,
       phase:Math.random()*Math.PI*2, spd:0.08+Math.random()*0.25
     });
   }
@@ -447,8 +447,38 @@ function stopRainSound(){
   setTimeout(()=>{ try{rainNode.stop();}catch(e){} rainNode=null; rainGain=null; },1200);
 }
 
-// ── Cricket sound (偶尔蛐蛐叫) ──
-let cricketTimer=null;
+// ── Cricket + wind sound ──
+let cricketTimer=null, windNode=null, windGain=null;
+function startWindSound(){
+  if(windNode) return;
+  try{
+    const a=getAC();
+    const buf=a.createBuffer(1,a.sampleRate*4,a.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+    windNode=a.createBufferSource(); windNode.buffer=buf; windNode.loop=true;
+    const f1=a.createBiquadFilter(); f1.type='lowpass';  f1.frequency.value=320; f1.Q.value=0.5;
+    const f2=a.createBiquadFilter(); f2.type='highpass'; f2.frequency.value=60;
+    windGain=a.createGain(); windGain.gain.setValueAtTime(0,a.currentTime);
+    windGain.gain.linearRampToValueAtTime(0.03,a.currentTime+3);
+    windNode.connect(f1); f1.connect(f2); f2.connect(windGain); windGain.connect(a.destination);
+    windNode.start();
+    // slow volume swell for wind gusts
+    (function gust(){
+      if(!windGain) return;
+      const now=windGain.context.currentTime;
+      const peak=0.02+Math.random()*0.04;
+      windGain.gain.linearRampToValueAtTime(peak, now+2+Math.random()*3);
+      windGain.gain.linearRampToValueAtTime(0.01+Math.random()*0.015, now+5+Math.random()*4);
+      setTimeout(gust, (4+Math.random()*5)*1000);
+    })();
+  }catch(e){}
+}
+function stopWindSound(){
+  if(!windNode) return;
+  try{ windGain.gain.linearRampToValueAtTime(0,windGain.context.currentTime+2); }catch(e){}
+  setTimeout(()=>{ try{windNode.stop();}catch(e){} windNode=null; windGain=null; },2200);
+}
 function playCricket(){
   if(muted) return;
   try{
@@ -476,12 +506,14 @@ function playCricket(){
 }
 function startCicadaSound(){
   if(cricketTimer) return;
+  startWindSound();
   playCricket();
   function schedule(){ cricketTimer=setTimeout(()=>{ playCricket(); schedule(); }, 2000+Math.random()*5000); }
   schedule();
 }
 function stopCicadaSound(){
   if(cricketTimer){ clearTimeout(cricketTimer); cricketTimer=null; }
+  stopWindSound();
 }
 
 document.getElementById('btn-mute').addEventListener('click',()=>{
