@@ -24,7 +24,7 @@ body{
 }
 body.animation-ready{animation-play-state:running;animation-duration:1s;animation-name:sunrise;}
 body.animation-ready.dark{animation-duration:1.7s;animation-name:sunset;}
-body.rainy{--light:#d6dde8;}
+body.rainy{--light:#bfcee0;}
 body.dark{--light:var(--night);--dark-col:var(--day);--shadow:#030307;--bounce-light:#1b293f;}
 @keyframes sunrise{0%{background-color:var(--night)}10%{background-color:var(--dawn)}35%{background-color:var(--morning)}100%{background-color:var(--day)}}
 @keyframes sunset{0%{background-color:var(--day)}30%{background-color:var(--evening)}60%{background-color:var(--dusk)}90%{background-color:var(--dawn)}100%{background-color:var(--night)}}
@@ -157,7 +157,7 @@ window.addEventListener('resize', resize);
 const THEMES = {
   light: { bg:'#f7f5f0', ink:'#1e1a14', progress:'#b0a898', fakeBg:'#f7f5f0' },
   dark:  { bg:'#151311', ink:'#e8e4dc', progress:'#4a4640', fakeBg:'#151311' },
-  rain:  { bg:'#d6dde8', ink:'#2a2d33', progress:'#7a8899', fakeBg:'#d6dde8' },
+  rain:  { bg:'#bfcee0', ink:'#2a2d33', progress:'#7a8899', fakeBg:'#bfcee0' },
 };
 // init sunlit shutters
 (function(){
@@ -337,15 +337,15 @@ function playThud(){
   function fit(){
     cv.width=innerWidth; cv.height=innerHeight;
     drops.length=0; clouds.length=0;
-    for(let i=0;i<80;i++) drops.push({
+    for(let i=0;i<45;i++) drops.push({
       x:Math.random()*cv.width, y:Math.random()*cv.height,
-      spd:5+Math.random()*4, len:8+Math.random()*10, alpha:0.10+Math.random()*0.10
+      spd:4+Math.random()*3, len:6+Math.random()*8, alpha:0.07+Math.random()*0.07
     });
-    for(let i=0;i<5;i++) clouds.push({
+    for(let i=0;i<6;i++) clouds.push({
       x:Math.random()*cv.width*1.5-cv.width*0.2,
-      y:cv.height*(0.05+Math.random()*0.25),
-      w:180+Math.random()*260, h:50+Math.random()*60,
-      spd:0.08+Math.random()*0.10, alpha:0.06+Math.random()*0.08
+      y:cv.height*(0.03+Math.random()*0.22),
+      w:220+Math.random()*320, h:60+Math.random()*80,
+      spd:0.06+Math.random()*0.08, alpha:0.18+Math.random()*0.14
     });
   }
   addEventListener('resize',fit); fit();
@@ -433,10 +433,11 @@ function startRainSound(){
     const d=buf.getChannelData(0);
     for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
     rainNode=a.createBufferSource(); rainNode.buffer=buf; rainNode.loop=true;
-    const f=a.createBiquadFilter(); f.type='bandpass'; f.frequency.value=1200; f.Q.value=0.4;
+    const f=a.createBiquadFilter(); f.type='highpass'; f.frequency.value=2400; f.Q.value=0.6;
+    const f2=a.createBiquadFilter(); f2.type='lowpass'; f2.frequency.value=6000;
     rainGain=a.createGain(); rainGain.gain.setValueAtTime(0,a.currentTime);
-    rainGain.gain.linearRampToValueAtTime(0.06,a.currentTime+1.5);
-    rainNode.connect(f); f.connect(rainGain); rainGain.connect(a.destination);
+    rainGain.gain.linearRampToValueAtTime(0.022,a.currentTime+1.5);
+    rainNode.connect(f); f.connect(f2); f2.connect(rainGain); rainGain.connect(a.destination);
     rainNode.start();
   }catch(e){}
 }
