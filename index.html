@@ -31,30 +31,9 @@ body.dark{--light:var(--night);--dark-col:var(--day);--shadow:#030307;--bounce-l
 canvas{position:fixed;inset:0;background:transparent;z-index:1;}
 
 /* sunlit overlay */
-#dappled-light{pointer-events:none;position:fixed;height:100vh;width:100vw;z-index:0;mix-blend-mode:multiply;}
-#progressive-blur{position:absolute;height:100%;width:100%;}
-#progressive-blur>div{position:absolute;height:100%;width:100%;inset:0;backdrop-filter:blur(var(--blur-amount));-webkit-backdrop-filter:blur(var(--blur-amount));mask-image:linear-gradient(252deg,transparent,transparent var(--stop1),black var(--stop2),black);-webkit-mask-image:linear-gradient(252deg,transparent,transparent var(--stop1),black var(--stop2),black);}
-#progressive-blur>div:nth-child(1){--blur-amount:6px;--stop1:0%;--stop2:0%;}
-#progressive-blur>div:nth-child(2){--blur-amount:12px;--stop1:40%;--stop2:80%;}
-#progressive-blur>div:nth-child(3){--blur-amount:48px;--stop1:40%;--stop2:70%;}
-#progressive-blur>div:nth-child(4){--blur-amount:96px;--stop1:70%;--stop2:80%;}
-#glow{position:absolute;background:linear-gradient(309deg,var(--bounce-light),var(--bounce-light) 20%,transparent);transition:background 1.0s var(--timing-fn);height:100%;width:100%;opacity:0.4;}
-#glow-bounce{content:"";position:absolute;background:linear-gradient(355deg,var(--bounce-light) 0%,transparent 30%,transparent 100%);transition:background 1.0s var(--timing-fn);opacity:0.4;height:100%;width:100%;bottom:0;}
-.perspective{position:absolute;transition:transform 1.7s var(--timing-fn),opacity 4s ease;top:-30vh;right:0;width:80vw;height:130vh;opacity:0.07;background-blend-mode:darken;transform-origin:top right;transform-style:preserve-3d;transform:matrix3d(0.7500,-0.0625,0.0000,0.0008,0.0000,1.0000,0.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,0.0000,1.0000);}
-body.dark .perspective{opacity:0.3;transform:matrix3d(0.8333,0.0833,0.0000,0.0003,0.0000,1.0000,0.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,0.0000,1.0000);}
-#leaves{position:absolute;background-size:cover;background-repeat:no-repeat;bottom:-20px;right:-700px;width:1600px;height:1400px;background-image:url("./leaves.png");filter:url(#wind);animation:billow 8s ease-in-out infinite;}
-#blinds{position:relative;width:100%;}
-#blinds .shutter,#blinds .bar{background-color:var(--shadow);}
-#blinds>.shutters{display:flex;flex-direction:column;align-items:end;gap:60px;transition:gap 1.0s var(--timing-fn);}
-body.dark #blinds>.shutters{gap:20px;}
-#blinds>.vertical{top:0;position:absolute;height:100%;width:100%;display:flex;justify-content:space-around;}
-.vertical>.bar{width:5px;height:100%;}
-.shutter{width:100%;height:40px;transition:height 1.0s var(--timing-fn);}
-body.dark .shutter{height:80px;}
-@keyframes billow{0%{transform:perspective(400px) rotateX(0deg) rotateY(0deg) scale(1)}25%{transform:perspective(400px) rotateX(1deg) rotateY(2deg) scale(1.02)}50%{transform:perspective(400px) rotateX(-4deg) rotateY(-2deg) scale(0.97)}75%{transform:perspective(400px) rotateX(1deg) rotateY(-1deg) scale(1.04)}100%{transform:perspective(400px) rotateX(0deg) rotateY(0deg) scale(1)}}
-
-/* sunny mode only */
-body:not(.sunny) #dappled-light{display:none;}
+/* sunny overlay canvas */
+#sunny-cv{pointer-events:none;position:fixed;inset:0;z-index:2;opacity:0;transition:opacity 1.2s ease;}
+body.sunny #sunny-cv{opacity:1;}
 
 #hint,#btn-reset,#btn-mute,#btn-dark{
   font-family:'Instrument Serif',serif;
@@ -74,24 +53,7 @@ body:not(.sunny) #dappled-light{display:none;}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="dappled-light">
-  <svg style="display:none">
-    <filter id="wind" x="-20%" y="-20%" width="140%" height="140%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" seed="2">
-        <animate attributeName="baseFrequency" dur="30s" keyTimes="0;0.5;1" values="0.012 0.015;0.018 0.022;0.012 0.015" repeatCount="indefinite"/>
-      </feTurbulence>
-      <feDisplacementMap in="SourceGraphic" scale="18" xChannelSelector="R" yChannelSelector="G"/>
-    </filter>
-  </svg>
-  <div id="progressive-blur"><div></div><div></div><div></div><div></div></div>
-  <div id="glow"></div>
-  <div id="glow-bounce"></div>
-  <div id="blinds">
-    <div class="shutters" id="shutters"></div>
-    <div class="vertical" id="verticals"></div>
-  </div>
-  <div class="perspective"><div id="leaves"></div></div>
-</div>
+<canvas id="sunny-cv"></canvas>
 <div id="hint">typing…</div>
 <button id="btn-reset" onmousedown="event.preventDefault()" ontouchstart="event.stopPropagation()">reset</button>
 <button id="btn-mute" onmousedown="event.preventDefault()" ontouchstart="event.stopPropagation()">sound</button>
@@ -157,12 +119,51 @@ const THEMES = {
   light: { bg:'#f7f5f0', ink:'#1e1a14', progress:'#b0a898', fakeBg:'#f7f5f0' },
   dark:  { bg:'#151311', ink:'#e8e4dc', progress:'#4a4640', fakeBg:'#151311' },
 };
-// init sunlit shutters
+// ── Sunny light rays ──
 (function(){
-  const s=document.getElementById('shutters');
-  const v=document.getElementById('verticals');
-  for(let i=0;i<12;i++){ const d=document.createElement('div'); d.className='shutter'; s.appendChild(d); }
-  for(let i=0;i<4;i++){ const d=document.createElement('div'); d.className='bar'; v.appendChild(d); }
+  const sc=document.getElementById('sunny-cv');
+  const sx=sc.getContext('2d');
+  let tick=0;
+  function fit(){ sc.width=window.innerWidth; sc.height=window.innerHeight; }
+  window.addEventListener('resize',fit); fit();
+
+  function draw(now){
+    requestAnimationFrame(draw);
+    tick=now*0.0002;
+    const w=sc.width, h=sc.height;
+    sx.clearRect(0,0,w,h);
+
+    // angle of light from upper-left
+    const angle = -0.35 + Math.sin(now*0.00008)*0.03;
+    const numRays = 7;
+    const raySpacing = w * 0.18;
+    const waver = Math.sin(now*0.00015)*6;
+
+    for(let i=0;i<numRays;i++){
+      const baseX = w*0.05 + i*raySpacing + waver;
+      const rayW  = raySpacing * (0.35 + 0.15*Math.sin(now*0.0001+i));
+      // each ray is a parallelogram: 4 points
+      const tan = Math.tan(angle);
+      const dx  = h * tan;
+      const x0  = baseX,          y0 = 0;
+      const x1  = baseX + rayW,   y1 = 0;
+      const x2  = baseX + rayW - dx, y2 = h;
+      const x3  = baseX - dx,     y3 = h;
+
+      // warm golden, very faint
+      const g = sx.createLinearGradient(baseX, 0, baseX+rayW, 0);
+      g.addColorStop(0,   'rgba(255,220,150,0)');
+      g.addColorStop(0.3, 'rgba(255,220,150,0.07)');
+      g.addColorStop(0.5, 'rgba(255,225,160,0.10)');
+      g.addColorStop(0.7, 'rgba(255,220,150,0.07)');
+      g.addColorStop(1,   'rgba(255,220,150,0)');
+      sx.fillStyle=g;
+      sx.beginPath();
+      sx.moveTo(x0,y0); sx.lineTo(x1,y1); sx.lineTo(x2,y2); sx.lineTo(x3,y3);
+      sx.closePath(); sx.fill();
+    }
+  }
+  requestAnimationFrame(draw);
 })();
 // modes: 0=B(bright), 1=S(sunny), 2=N(night)
 const MODES = ['B','S','N'];
