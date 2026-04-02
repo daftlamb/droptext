@@ -337,15 +337,9 @@ function playThud(){
   function fit(){
     cv.width=innerWidth; cv.height=innerHeight;
     drops.length=0; clouds.length=0;
-    for(let i=0;i<30;i++) drops.push({
+    for(let i=0;i<60;i++) drops.push({
       x:Math.random()*cv.width, y:Math.random()*cv.height,
-      spd:3+Math.random()*3, len:5+Math.random()*7, alpha:0.05+Math.random()*0.06
-    });
-    for(let i=0;i<7;i++) clouds.push({
-      x:Math.random()*cv.width*1.5-cv.width*0.2,
-      y:cv.height*(0.02+Math.random()*0.20),
-      w:280+Math.random()*380, h:80+Math.random()*100,
-      spd:0.05+Math.random()*0.07, alpha:0.32+Math.random()*0.20
+      spd:4+Math.random()*3, len:8+Math.random()*10, alpha:0.15+Math.random()*0.12
     });
   }
   addEventListener('resize',fit); fit();
@@ -353,18 +347,6 @@ function playThud(){
     requestAnimationFrame(tick);
     const w=cv.width,h=cv.height;
     cx.clearRect(0,0,w,h);
-    // draw clouds
-    clouds.forEach(c=>{
-      const grd=cx.createRadialGradient(c.x+c.w/2,c.y+c.h/2,0,c.x+c.w/2,c.y+c.h/2,c.w*0.6);
-      grd.addColorStop(0,`rgba(255,255,255,${c.alpha})`);
-      grd.addColorStop(1,'rgba(255,255,255,0)');
-      cx.fillStyle=grd;
-      cx.beginPath();
-      cx.ellipse(c.x+c.w/2,c.y+c.h/2,c.w/2,c.h/2,0,0,Math.PI*2);
-      cx.fill();
-      c.x+=c.spd;
-      if(c.x>w+c.w) c.x=-c.w;
-    });
     // draw drops
     drops.forEach(d=>{
       cx.beginPath();
