@@ -42,12 +42,7 @@ const vv  = window.visualViewport;
 function resize(){
   W = vv ? vv.width  : window.innerWidth;
   H = vv ? vv.height : window.innerHeight;
-  floorY = H - 4; // flush to keyboard top
-  // freeze all sleeping bodies when keyboard hides/shows
-  layers.forEach(l=>l.chars.forEach(({body})=>{
-    Body.setVelocity(body,{x:0,y:0});
-    Body.setAngularVelocity(body,0);
-  }));
+  floorY = H - 48; // space for bottom bar only (vv already excludes keyboard)
   canvas.width  = Math.round(W * DPR);
   canvas.height = Math.round(H * DPR);
   canvas.style.width  = W + 'px';
@@ -58,8 +53,14 @@ function resize(){
 }
 function alignButtons(){
   const px = Math.round(W * 0.1) + 'px';
-  document.getElementById('btn-mute').style.left  = px;
-  document.getElementById('btn-reset').style.right = px;
+  const btm = (H - (vv ? vv.offsetTop + vv.height : H) + 20) + 'px'; // always above keyboard
+  document.getElementById('btn-mute').style.left   = px;
+  document.getElementById('btn-reset').style.right  = px;
+  // align hint + buttons to same bottom baseline
+  const fixedBtm = 'calc(20px + env(safe-area-inset-bottom))';
+  document.getElementById('btn-reset').style.bottom = fixedBtm;
+  document.getElementById('btn-mute').style.bottom  = fixedBtm;
+  document.getElementById('hint').style.bottom      = fixedBtm;
 }
 if(vv){ vv.addEventListener('resize', resize); vv.addEventListener('scroll', resize); }
 window.addEventListener('resize', resize);
@@ -239,7 +240,6 @@ function findBodyNear(tx,ty){
   let best=null, bestD=Infinity;
   layers.forEach(layer=>{
     layer.chars.forEach(({body})=>{
-      if(body.position.y > H + 50) return; // ignore chars below visible area
       const dx=body.position.x-tx, dy=body.position.y-ty;
       const d=Math.sqrt(dx*dx+dy*dy);
       if(d<40&&d<bestD){ bestD=d; best=body; }
@@ -362,7 +362,7 @@ function draw(){
     if(blurPx>0) ctx.filter=`blur(${blurPx}px)`;
     layer.chars.forEach(({body,ch})=>{
       const {x,y}=body.position;
-      if(y > window.innerHeight + 200) return;
+      if(y>H+100) return;
       ctx.save(); ctx.translate(x,y); ctx.rotate(body.angle);
       ctx.globalAlpha=layer.alpha; ctx.fillStyle='#1e1a14'; ctx.font=FONT;
       ctx.fillText(ch,0,0); ctx.restore();
@@ -373,7 +373,7 @@ function draw(){
 
   layers.forEach(l=>{
     for(let i=l.chars.length-1;i>=0;i--){
-      if(l.chars[i].body.position.y > window.innerHeight + 400){ World.remove(world,l.chars[i].body); l.chars.splice(i,1); }
+      if(l.chars[i].body.position.y>H+300){ World.remove(world,l.chars[i].body); l.chars.splice(i,1); }
     }
   });
 }
