@@ -42,7 +42,7 @@ const vv  = window.visualViewport;
 function resize(){
   W = vv ? vv.width  : window.innerWidth;
   H = vv ? vv.height : window.innerHeight;
-  floorY = H - 2; // flush to keyboard top
+  floorY = H - 52; // leave room for bottom bar
   canvas.width  = Math.round(W * DPR);
   canvas.height = Math.round(H * DPR);
   canvas.style.width  = W + 'px';
