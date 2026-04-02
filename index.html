@@ -2,22 +2,22 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Drop Text</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;overflow:hidden;background:#f7f5f0;}
+html,body{height:100%;overflow:hidden;background:#f7f5f0;touch-action:none;}
 canvas{position:fixed;inset:0;}
 #hint,#btn-reset,#btn-mute{
   font-family:'Noto Serif SC',Georgia,serif;
   font-size:11px;letter-spacing:2px;color:#c8c0b4;
-  background:none;border:none;
+  background:none;border:none;-webkit-tap-highlight-color:transparent;
 }
-#hint{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);pointer-events:none;transition:opacity .8s;white-space:nowrap;}
-#btn-reset{position:fixed;bottom:20px;right:28px;cursor:pointer;}
+#hint{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);pointer-events:none;transition:opacity .8s;white-space:nowrap;}
+#btn-reset{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));cursor:pointer;}
 #btn-reset:hover{color:#888;}
-#btn-mute{position:fixed;bottom:20px;left:28px;cursor:pointer;}
+#btn-mute{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));cursor:pointer;}
 #btn-mute:hover{color:#888;}
 </style>
 </head>
@@ -29,39 +29,75 @@ canvas{position:fixed;inset:0;}
 <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
 <script>
 (function(){
-const { Engine, Bodies, Body, World, Mouse, MouseConstraint, Constraint } = Matter;
+const { Engine, Bodies, Body, World, Mouse, MouseConstraint, Constraint, Events } = Matter;
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const hint = document.getElementById('hint');
 
+// ── Size — use visualViewport on mobile to avoid keyboard resize jumps ──
+const vv = window.visualViewport;
 let W, H;
+function getSize(){
+  W = vv ? vv.width  : window.innerWidth;
+  H = vv ? vv.height : window.innerHeight;
+}
 function resize(){
-  W = canvas.width  = window.innerWidth;
-  H = canvas.height = window.innerHeight;
+  getSize();
+  canvas.width  = W;
+  canvas.height = H;
+  // scale canvas for device pixel ratio (sharp on retina/mobile)
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.scale(dpr, dpr);
   rebuildWalls();
+  alignButtons();
+}
+if(vv){
+  vv.addEventListener('resize', resize);
+  vv.addEventListener('scroll', resize);
+} else {
+  window.addEventListener('resize', resize);
+}
+resize();
+
+function alignButtons(){
+  const px = Math.round(W * 0.1) + 'px';
+  document.getElementById('btn-mute').style.left  = px;
+  document.getElementById('btn-reset').style.right = px;
 }
 
-const eng  = Engine.create({ gravity:{x:0,y:6}, enableSleeping:true });
+// ── Physics ──
+const eng   = Engine.create({ gravity:{x:0,y:6}, enableSleeping:true });
 const world = eng.world;
 let floor, wL, wR;
 function rebuildWalls(){
   if(floor) World.remove(world,[floor,wL,wR]);
-  floor = Bodies.rectangle(W/2, H-55, W*3, 50, {isStatic:true,friction:12,restitution:0,frictionStatic:100,sleepThreshold:1});
-  wL    = Bodies.rectangle(-30, H/2, 60, H*3, {isStatic:true});
+  const floorY = H - 55;
+  floor = Bodies.rectangle(W/2, floorY, W*3, 50, {isStatic:true,friction:12,restitution:0,frictionStatic:100,sleepThreshold:1});
+  wL    = Bodies.rectangle(-30,  H/2, 60, H*3, {isStatic:true});
   wR    = Bodies.rectangle(W+30, H/2, 60, H*3, {isStatic:true});
   World.add(world,[floor,wL,wR]);
 }
-resize();
-window.addEventListener('resize', resize);
 
-const FS    = 20;
-const FONT  = `${FS}px 'Noto Serif SC',Georgia,serif`;
-const PX    = Math.round(window.innerWidth * 0.1);
-const PY    = 80;
-const LH    = FS * 2.0;
+// ── Typography — responsive font size ──
+const BASE_FS = 20;
+function getFontSize(){ return Math.round(Math.max(16, Math.min(BASE_FS, W * 0.045))); }
+let FS   = getFontSize();
+let FONT = `${FS}px 'Noto Serif SC',Georgia,serif`;
+let PX, PY, LH;
+function updateMetrics(){
+  FS   = getFontSize();
+  FONT = `${FS}px 'Noto Serif SC',Georgia,serif`;
+  PX   = Math.round(W * 0.1);
+  PY   = Math.round(H * 0.1);
+  LH   = FS * 2.0;
+  mc.font = FONT;
+}
 const LIMIT = 80;
-const mc    = document.createElement('canvas').getContext('2d');
-mc.font     = FONT;
+const mc = document.createElement('canvas').getContext('2d');
 const NO_START = new Set('，。！？、：；」』）〕】〉》…—～'.split(''));
 function charW(ch){ return mc.measureText(ch).width; }
 
@@ -79,12 +115,13 @@ function wrap(t){
 }
 
 let typed='', lines=[''], cpos=[];
-let phase='typing'; // typing | shaking | dropping
+let phase='typing';
 let shakeTick=0, tick=0;
 const layers=[];
-let lockInput=false; // true during shaking+dropping
+let lockInput=false;
 
 function buildCpos(){
+  updateMetrics();
   cpos=[];
   lines.forEach((line,li)=>{
     let x=PX;
@@ -113,7 +150,7 @@ function update(){
   }
 }
 
-// ── Drop — all at once ──
+// ── Drop ──
 function startDrop(snap){
   phase='dropping';
   hint.style.opacity='0';
@@ -147,7 +184,7 @@ function startDrop(snap){
     }));
   }
 
-  layers.push({chars:newChars,alpha:1.0,blur:0});
+  layers.push({chars:newChars,alpha:1.0});
   finishDrop();
 }
 
@@ -161,7 +198,11 @@ function finishDrop(){
 // ── Audio ──
 const AC=window.AudioContext||window.webkitAudioContext;
 let ac=null, muted=false;
-function getAC(){ if(!ac) ac=new AC(); return ac; }
+function getAC(){
+  if(!ac) ac=new AC();
+  if(ac.state==='suspended') ac.resume();
+  return ac;
+}
 function playKey(){
   if(muted) return;
   try{
@@ -199,14 +240,12 @@ document.getElementById('btn-mute').addEventListener('click',()=>{
   b.style.color=muted?'#ddd':'';
 });
 
-// ── Input ──
+// ── Input — keyboard (desktop) ──
 const ime=document.createElement('textarea');
 ime.style.cssText='position:fixed;top:-300px;left:0;width:200px;height:40px;opacity:0;font-size:16px;resize:none;';
 ime.setAttribute('autocomplete','off'); ime.setAttribute('autocorrect','off');
 ime.setAttribute('autocapitalize','off'); ime.setAttribute('spellcheck','false');
 document.body.appendChild(ime);
-window.addEventListener('click',()=>ime.focus());
-ime.focus();
 
 let composing=false;
 ime.addEventListener('compositionstart',()=>{ composing=true; });
@@ -218,7 +257,6 @@ ime.addEventListener('compositionend',e=>{
   if(lockInput||!val) return;
   typed+=val; update();
 });
-
 window.addEventListener('keydown',e=>{
   if(composing||lockInput) return;
   if(e.key==='Backspace'){
@@ -230,12 +268,44 @@ window.addEventListener('keydown',e=>{
   } else if(e.key.length===1&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!e.isComposing){
     e.preventDefault();
     const k=e.key;
-    setTimeout(()=>{
-      if(composing||lockInput) return;
-      typed+=k; playKey(); update();
-    },0);
+    setTimeout(()=>{ if(composing||lockInput) return; typed+=k; playKey(); update(); },0);
   }
 });
+
+// ── Input — touch keyboard (mobile) ──
+// Tap canvas → focus hidden textarea to bring up keyboard
+canvas.addEventListener('click',()=>{ ime.focus(); });
+canvas.addEventListener('touchend',e=>{
+  e.preventDefault();
+  ime.focus();
+  // resume AudioContext on first touch (mobile policy)
+  getAC();
+},{ passive:false });
+
+// ── Touch drag for physics bodies ──
+let touchBody=null, touchOffset={x:0,y:0};
+canvas.addEventListener('touchstart',e=>{
+  if(e.touches.length!==1) return;
+  const t=e.touches[0];
+  const tx=t.clientX, ty=t.clientY;
+  // find nearest body
+  let best=null, bestD=Infinity;
+  layers.forEach(layer=>{
+    layer.chars.forEach(({body})=>{
+      const dx=body.position.x-tx, dy=body.position.y-ty;
+      const d=Math.sqrt(dx*dx+dy*dy);
+      if(d<40&&d<bestD){ bestD=d; best=body; }
+    });
+  });
+  if(best){ touchBody=best; touchOffset={x:best.position.x-tx,y:best.position.y-ty}; }
+},{passive:true});
+canvas.addEventListener('touchmove',e=>{
+  if(!touchBody||e.touches.length!==1) return;
+  const t=e.touches[0];
+  Body.setPosition(touchBody,{x:t.clientX+touchOffset.x,y:t.clientY+touchOffset.y});
+  Body.setVelocity(touchBody,{x:0,y:0});
+},{passive:true});
+canvas.addEventListener('touchend',()=>{ touchBody=null; },{passive:true});
 
 // ── Reset ──
 document.getElementById('btn-reset').addEventListener('click',()=>{
@@ -247,7 +317,7 @@ document.getElementById('btn-reset').addEventListener('click',()=>{
   hint.style.opacity='1'; hint.textContent='开始输入…';
 });
 
-// ── Mouse ──
+// ── Mouse (desktop drag) ──
 const mouse=Mouse.create(canvas);
 const mcon=MouseConstraint.create(eng,{mouse,constraint:{stiffness:0.12,damping:0.1,render:{visible:false}}});
 World.add(world,mcon);
@@ -290,8 +360,7 @@ function draw(){
 
   ctx.textAlign='center';
   layers.forEach(layer=>{
-    // blur increases as alpha decreases (max 6px blur at alpha=0)
-    const blurPx = Math.round((1-layer.alpha)*6);
+    const blurPx=Math.round((1-layer.alpha)*6);
     if(blurPx>0) ctx.filter=`blur(${blurPx}px)`;
     layer.chars.forEach(({body,ch})=>{
       const {x,y}=body.position;
