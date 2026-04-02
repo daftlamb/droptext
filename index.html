@@ -13,9 +13,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400&family=Instrument+Serif&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;overflow:hidden;background:#f7f5f0;}
+html,body{height:100%;overflow:hidden;background:#f7f5f0;transition:background .4s;}
 canvas{position:fixed;inset:0;}
-#hint,#btn-reset,#btn-mute{
+#hint,#btn-reset,#btn-mute,#btn-dark{
   font-family:'Noto Serif SC',Georgia,serif;
   font-size:14px;letter-spacing:2px;color:#c8c0b4;
   background:none;border:none;-webkit-tap-highlight-color:transparent;
@@ -25,6 +25,8 @@ canvas{position:fixed;inset:0;}
 #btn-reset:hover{color:#888;}
 #btn-mute{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));cursor:pointer;}
 #btn-mute:hover{color:#888;}
+#btn-dark{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);cursor:pointer;}
+#btn-dark:hover{color:#888;}
 #title{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Instrument Serif',serif;font-size:clamp(28px,8vw,52px);color:#c8c0b4;pointer-events:none;letter-spacing:-0.02em;transition:opacity .6s;}
 </style>
 </head>
@@ -33,6 +35,7 @@ canvas{position:fixed;inset:0;}
 <div id="hint">开始输入…</div>
 <button id="btn-reset">清空</button>
 <button id="btn-mute">音效</button>
+<button id="btn-dark">暗色</button>
 <div id="title">Drop Text</div>
 <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
 <script>
@@ -88,6 +91,20 @@ function rebuildWalls(){
 }
 resize();
 window.addEventListener('resize', resize);
+
+// ── Theme ──
+const THEMES = {
+  light: { bg:'#f7f5f0', ink:'#1e1a14', progress:'#b0a898', ui:'#c8c0b4', fakeBg:'#f7f5f0' },
+  dark:  { bg:'#151311', ink:'#e8e4dc', progress:'#4a4640', ui:'#5a5652', fakeBg:'#151311' },
+};
+let dark = false;
+let T = THEMES.light;
+document.getElementById('btn-dark').addEventListener('click',()=>{
+  dark = !dark;
+  T = dark ? THEMES.dark : THEMES.light;
+  document.body.style.background = T.bg;
+  document.getElementById('btn-dark').textContent = dark ? '亮色' : '暗色';
+});
 
 const FS    = 20;
 const FONT  = `${FS}px 'Noto Serif SC',Georgia,serif`;
@@ -336,8 +353,8 @@ function draw(){
   Engine.update(eng,1000/60);
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0); // ensure transform after any resize
   tick++;
-  ctx.clearRect(0,0,W,H);
-  ctx.font=FONT; ctx.fillStyle='#1e1a14';
+  ctx.fillStyle=T.bg; ctx.fillRect(0,0,W,H);
+  ctx.font=FONT; ctx.fillStyle=T.ink;
   ctx.textBaseline='middle'; ctx.textAlign='left';
 
   if(phase==='typing'||phase==='shaking'){
@@ -369,9 +386,9 @@ function draw(){
     }
     const p=typed.replace(/\s/g,'').length/LIMIT;
     ctx.globalAlpha=0.07+p*0.13;
-    ctx.fillStyle='#b0a898';
+    ctx.fillStyle=T.progress;
     ctx.fillRect(0,0,W*p,1);
-    ctx.globalAlpha=1; ctx.fillStyle='#1e1a14';
+    ctx.globalAlpha=1; ctx.fillStyle=T.ink;
   }
 
   ctx.textAlign='center';
@@ -382,12 +399,12 @@ function draw(){
       if(y>H+100) return;
       ctx.save(); ctx.translate(x,y); ctx.rotate(body.angle);
       // base char at current alpha
-      ctx.globalAlpha=layer.alpha; ctx.fillStyle='#1e1a14'; ctx.font=FONT;
+      ctx.globalAlpha=layer.alpha; ctx.fillStyle=T.ink; ctx.font=FONT;
       ctx.fillText(ch,0,0);
       // fake blur: draw bg-colored copies offset in 4 directions, scaled with fade
       if(fade>0.1){
         const spread = Math.round(fade*5);
-        ctx.globalAlpha=layer.alpha*fade*0.4; ctx.fillStyle='#f7f5f0';
+        ctx.globalAlpha=layer.alpha*fade*0.4; ctx.fillStyle=T.fakeBg;
         for(let s=1;s<=spread;s++){
           ctx.fillText(ch, s,0); ctx.fillText(ch,-s,0);
           ctx.fillText(ch,0, s); ctx.fillText(ch,0,-s);
