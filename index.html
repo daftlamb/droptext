@@ -11,13 +11,13 @@ html,body{height:100%;overflow:hidden;background:#f7f5f0;}
 canvas{position:fixed;inset:0;}
 #hint,#btn-reset,#btn-mute{
   font-family:'Noto Serif SC',Georgia,serif;
-  font-size:11px;letter-spacing:2px;color:#c8c0b4;
-  background:none;border:none;
+  font-size:14px;letter-spacing:2px;color:#c8c0b4;
+  background:none;border:none;-webkit-tap-highlight-color:transparent;
 }
-#hint{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);pointer-events:none;transition:opacity .8s;white-space:nowrap;}
-#btn-reset{position:fixed;bottom:20px;right:28px;cursor:pointer;}
+#hint{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);pointer-events:none;transition:opacity .8s;white-space:nowrap;}
+#btn-reset{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));cursor:pointer;}
 #btn-reset:hover{color:#888;}
-#btn-mute{position:fixed;bottom:20px;left:28px;cursor:pointer;}
+#btn-mute{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));cursor:pointer;}
 #btn-mute:hover{color:#888;}
 </style>
 </head>
@@ -34,25 +34,35 @@ const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const hint = document.getElementById('hint');
 
-let W, H;
+let W, H, floorY;
 const DPR = window.devicePixelRatio || 1;
+const vv  = window.visualViewport;
 function resize(){
-  W = window.innerWidth;
-  H = window.innerHeight;
+  W = vv ? vv.width  : window.innerWidth;
+  H = vv ? vv.height : window.innerHeight;
+  floorY = H - 55;
   canvas.width  = Math.round(W * DPR);
   canvas.height = Math.round(H * DPR);
   canvas.style.width  = W + 'px';
   canvas.style.height = H + 'px';
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   rebuildWalls();
+  alignButtons();
 }
+function alignButtons(){
+  const px = Math.round(W * 0.1) + 'px';
+  document.getElementById('btn-mute').style.left  = px;
+  document.getElementById('btn-reset').style.right = px;
+}
+if(vv){ vv.addEventListener('resize', resize); vv.addEventListener('scroll', resize); }
+window.addEventListener('resize', resize);
 
 const eng  = Engine.create({ gravity:{x:0,y:6}, enableSleeping:true });
 const world = eng.world;
 let floor, wL, wR;
 function rebuildWalls(){
   if(floor) World.remove(world,[floor,wL,wR]);
-  floor = Bodies.rectangle(W/2, H-55, W*3, 50, {isStatic:true,friction:12,restitution:0,frictionStatic:100,sleepThreshold:1});
+  floor = Bodies.rectangle(W/2, floorY, W*3, 50, {isStatic:true,friction:12,restitution:0,frictionStatic:100,sleepThreshold:1});
   wL    = Bodies.rectangle(-30, H/2, 60, H*3, {isStatic:true});
   wR    = Bodies.rectangle(W+30, H/2, 60, H*3, {isStatic:true});
   World.add(world,[floor,wL,wR]);
@@ -63,7 +73,7 @@ window.addEventListener('resize', resize);
 const FS    = 20;
 const FONT  = `${FS}px 'Noto Serif SC',Georgia,serif`;
 const PX    = Math.round(window.innerWidth * 0.1);
-const PY    = 80;
+const PY    = 55;
 const LH    = FS * 2.0;
 const LIMIT = 80;
 const mc    = document.createElement('canvas').getContext('2d');
@@ -212,7 +222,8 @@ ime.setAttribute('autocomplete','off'); ime.setAttribute('autocorrect','off');
 ime.setAttribute('autocapitalize','off'); ime.setAttribute('spellcheck','false');
 document.body.appendChild(ime);
 window.addEventListener('click',()=>ime.focus());
-window.addEventListener('touchstart',()=>{ if(ac&&ac.state==='suspended') ac.resume(); ime.focus(); ime.value=''; },{passive:true});
+let lastFocusTime=0;
+window.addEventListener('touchstart',()=>{ if(ac&&ac.state==='suspended') ac.resume(); lastFocusTime=Date.now(); ime.focus(); ime.value=''; },{passive:true});
 ime.focus();
 
 let composing=false;
@@ -223,6 +234,7 @@ ime.addEventListener('compositionend',e=>{
   const val=e.data||'';
   ime.value='';
   if(lockInput||!val) return;
+  if(Date.now()-lastFocusTime<100) return; // ignore IME events right after focus
   typed+=val; update();
 });
 
