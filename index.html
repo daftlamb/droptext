@@ -42,7 +42,12 @@ const vv  = window.visualViewport;
 function resize(){
   W = vv ? vv.width  : window.innerWidth;
   H = vv ? vv.height : window.innerHeight;
-  floorY = window.innerHeight - 48; // always based on full screen, not keyboard-adjusted height
+  floorY = H - 4; // flush to keyboard top
+  // freeze all sleeping bodies when keyboard hides/shows
+  layers.forEach(l=>l.chars.forEach(({body})=>{
+    Body.setVelocity(body,{x:0,y:0});
+    Body.setAngularVelocity(body,0);
+  }));
   canvas.width  = Math.round(W * DPR);
   canvas.height = Math.round(H * DPR);
   canvas.style.width  = W + 'px';
@@ -362,7 +367,7 @@ function draw(){
     if(blurPx>0) ctx.filter=`blur(${blurPx}px)`;
     layer.chars.forEach(({body,ch})=>{
       const {x,y}=body.position;
-      if(y > window.innerHeight + 100) return;
+      if(y > window.innerHeight + 200) return;
       ctx.save(); ctx.translate(x,y); ctx.rotate(body.angle);
       ctx.globalAlpha=layer.alpha; ctx.fillStyle='#1e1a14'; ctx.font=FONT;
       ctx.fillText(ch,0,0); ctx.restore();
@@ -373,7 +378,7 @@ function draw(){
 
   layers.forEach(l=>{
     for(let i=l.chars.length-1;i>=0;i--){
-      if(l.chars[i].body.position.y > window.innerHeight + 300){ World.remove(world,l.chars[i].body); l.chars.splice(i,1); }
+      if(l.chars[i].body.position.y > window.innerHeight + 400){ World.remove(world,l.chars[i].body); l.chars.splice(i,1); }
     }
   });
 }
