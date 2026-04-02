@@ -58,7 +58,7 @@ body.sunny #dappled-light{display:block;}
 .leaves-wrap{position:absolute;top:-30vh;right:0;width:80vw;height:130vh;transform-origin:top right;transform:matrix3d(0.7500,-0.0625,0,0.0008,0,1,0,0,0,0,1,0,0,0,0,1);}
 #leaves{position:absolute;bottom:-20px;right:-500px;width:1400px;height:1200px;background:url('./leaves.png') center/cover no-repeat;filter:url(#wind);animation:billow 8s ease-in-out infinite;opacity:0.18;mix-blend-mode:multiply;}
 
-#hint,#btn-reset,#btn-mute,#btn-dark{
+#hint,#btn-reset,#btn-mute,#btn-dark,#btn-flow{
   font-family:'Instrument Serif',serif;
   font-size:19px;letter-spacing:-0.02em;color:#c8c0b4;
   background:none;border:none;-webkit-tap-highlight-color:transparent;
@@ -72,11 +72,11 @@ body.sunny #dappled-light{display:block;}
 #btn-reset:hover{color:#888;}
 #btn-mute{cursor:pointer;line-height:1;}
 #btn-mute:hover{color:#888;}
-#btn-dark{position:fixed;top:12px;right:12px;cursor:pointer;line-height:1;z-index:200;padding:12px;}
+#btn-dark{position:fixed;top:20px;right:20px;cursor:pointer;line-height:1;z-index:200;}
 #btn-dark:hover{color:#888;}
-#btn-flow{position:fixed;top:12px;left:12px;cursor:pointer;line-height:1;z-index:200;padding:12px;}
+#btn-flow{position:fixed;top:20px;left:20px;cursor:pointer;line-height:1;z-index:200;}
 #btn-flow:hover{color:#888;}
-#btn-flow.active{color:#7a6e65;}
+#btn-flow.active{color:#8a8078;}
 #title{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Instrument Serif',serif;font-size:clamp(28px,8vw,52px);color:#c8c0b4;pointer-events:none;letter-spacing:-0.02em;transition:opacity .6s;z-index:200;}
 </style>
 </head>
