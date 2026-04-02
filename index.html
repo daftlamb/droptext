@@ -279,7 +279,7 @@ ime.addEventListener('compositionend',e=>{
   const val=e.data||'';
   ime.value='';
   if(lockInput||!val) return;
-  typed+=val; update();
+  typed+=val; playKey(); update();
 });
 // English chars via input event (fires after compositionend so composing=false already)
 ime.addEventListener('input',()=>{
