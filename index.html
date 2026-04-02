@@ -362,17 +362,25 @@ function draw(){
 
   ctx.textAlign='center';
   layers.forEach(layer=>{
-    // blur increases as alpha decreases (max 6px blur at alpha=0)
-    const blurPx = Math.round((1-layer.alpha)*6);
-    if(blurPx>0) ctx.filter=`blur(${blurPx}px)`;
+    const fade = 1 - layer.alpha; // 0=fresh, 1=gone
     layer.chars.forEach(({body,ch})=>{
       const {x,y}=body.position;
       if(y>H+100) return;
       ctx.save(); ctx.translate(x,y); ctx.rotate(body.angle);
+      // base char at current alpha
       ctx.globalAlpha=layer.alpha; ctx.fillStyle='#1e1a14'; ctx.font=FONT;
-      ctx.fillText(ch,0,0); ctx.restore();
+      ctx.fillText(ch,0,0);
+      // fake blur: draw bg-colored copies offset in 4 directions, scaled with fade
+      if(fade>0.1){
+        const spread = Math.round(fade*5);
+        ctx.globalAlpha=layer.alpha*fade*0.4; ctx.fillStyle='#f7f5f0';
+        for(let s=1;s<=spread;s++){
+          ctx.fillText(ch, s,0); ctx.fillText(ch,-s,0);
+          ctx.fillText(ch,0, s); ctx.fillText(ch,0,-s);
+        }
+      }
+      ctx.restore();
     });
-    ctx.filter='none';
   });
   ctx.globalAlpha=1; ctx.textAlign='left';
 
