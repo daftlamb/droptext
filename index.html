@@ -38,7 +38,9 @@ body.sunny #dappled-light{display:block;}
 #progressive-blur{display:none;}
 #glow{position:absolute;background:linear-gradient(309deg,var(--bounce-light),var(--bounce-light) 20%,transparent);transition:background 1.0s var(--timing-fn);height:100%;width:100%;opacity:0.35;mix-blend-mode:multiply;}
 #glow-bounce{position:absolute;background:linear-gradient(355deg,var(--bounce-light) 0%,transparent 30%);transition:background 1.0s var(--timing-fn);opacity:0.35;height:100%;width:100%;bottom:0;mix-blend-mode:multiply;}
-.perspective{position:absolute;transition:transform 1.7s var(--timing-fn),opacity 1s ease;top:-30vh;right:0;width:80vw;height:130vh;opacity:0.7;transform-origin:top right;transform:matrix3d(0.7500,-0.0625,0,0.0008,0,1,0,0,0,0,1,0,0,0,0,1);-webkit-mask-image:linear-gradient(to right,transparent 0%,black 25%,black 65%,transparent 100%);mask-image:linear-gradient(to right,transparent 0%,black 25%,black 65%,transparent 100%);}
+.perspective{position:absolute;transition:transform 1.7s var(--timing-fn),opacity 1s ease;top:-30vh;right:0;width:80vw;height:130vh;opacity:0.7;transform-origin:top right;transform:matrix3d(0.7500,-0.0625,0,0.0008,0,1,0,0,0,0,1,0,0,0,0,1);filter:blur(3px);}
+/* extra blur layer on top of perspective */
+.perspective-blur{position:absolute;top:-30vh;right:0;width:80vw;height:130vh;transform-origin:top right;transform:matrix3d(0.7500,-0.0625,0,0.0008,0,1,0,0,0,0,1,0,0,0,0,1);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);-webkit-mask-image:linear-gradient(to left,black 0%,black 40%,transparent 80%);mask-image:linear-gradient(to left,black 0%,black 40%,transparent 80%);pointer-events:none;}
 #blinds{position:relative;width:100%;mix-blend-mode:multiply;}
 #blinds .shutter,#blinds .bar{background-color:var(--shadow);}
 #blinds>.shutters{display:flex;flex-direction:column;align-items:stretch;gap:52px;}
@@ -80,6 +82,7 @@ body.sunny #dappled-light{display:block;}
     </div>
   </div>
   <div class="leaves-wrap"><div id="leaves"></div></div>
+  <div class="perspective-blur"></div>
 </div>
 <div id="hint">typing…</div>
 <button id="btn-reset" onmousedown="event.preventDefault()" ontouchstart="event.stopPropagation()">reset</button>
