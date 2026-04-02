@@ -35,9 +35,15 @@ const ctx = canvas.getContext('2d');
 const hint = document.getElementById('hint');
 
 let W, H;
+const DPR = window.devicePixelRatio || 1;
 function resize(){
-  W = canvas.width  = window.innerWidth;
-  H = canvas.height = window.innerHeight;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width  = Math.round(W * DPR);
+  canvas.height = Math.round(H * DPR);
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   rebuildWalls();
 }
 
@@ -206,7 +212,7 @@ ime.setAttribute('autocomplete','off'); ime.setAttribute('autocorrect','off');
 ime.setAttribute('autocapitalize','off'); ime.setAttribute('spellcheck','false');
 document.body.appendChild(ime);
 window.addEventListener('click',()=>ime.focus());
-window.addEventListener('touchstart',()=>{ if(ac&&ac.state==='suspended') ac.resume(); ime.focus(); },{passive:true});
+window.addEventListener('touchstart',()=>{ if(ac&&ac.state==='suspended') ac.resume(); ime.focus(); ime.value=''; },{passive:true});
 ime.focus();
 
 let composing=false;
@@ -311,7 +317,8 @@ function draw(){
     }
   });
 }
-draw();
+// wait for font before starting render loop to avoid flash of system font
+document.fonts.ready.then(()=>{ mc.font = FONT; draw(); });
 })();
 </script>
 </body>
