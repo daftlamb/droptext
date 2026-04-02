@@ -294,6 +294,7 @@ ime.addEventListener('input',()=>{
 
 window.addEventListener('keydown',e=>{
   if(composing||lockInput) return;
+  if(Date.now()-lastFocusTime<300) return; // block spurious keydown on mobile focus
   if(e.key==='Backspace'){
     e.preventDefault();
     if(typed.length){ typed=typed.slice(0,-1); playKey(); update(); }
