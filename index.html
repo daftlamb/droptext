@@ -279,27 +279,27 @@ ime.addEventListener('compositionend',e=>{
   const val=e.data||'';
   ime.value='';
   if(lockInput||!val) return;
-  if(Date.now()-lastFocusTime<300) return;
   typed+=val; update();
+});
+// English chars via input event (fires after compositionend so composing=false already)
+ime.addEventListener('input',()=>{
+  if(composing||lockInput) return;
+  const val=ime.value;
+  ime.value='';
+  if(!val||val.length===0) return;
+  typed+=val; playKey(); update();
 });
 
 window.addEventListener('keydown',e=>{
-  if(composing||lockInput) return;
-  if(Date.now()-lastFocusTime<600) return; // iOS fires keydown late after focus
-  if(e.key==='Backspace'){
+  if(lockInput) return;
+  if(e.key==='Backspace'&&!composing){
     e.preventDefault();
     if(typed.length){ typed=typed.slice(0,-1); playKey(); update(); }
-  } else if(e.key==='Enter'){
+  } else if(e.key==='Enter'&&!composing){
     e.preventDefault();
     typed+='\n'; playKey(); update();
-  } else if(e.key.length===1&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!e.isComposing){
-    e.preventDefault();
-    const k=e.key;
-    setTimeout(()=>{
-      if(composing||lockInput) return;
-      typed+=k; playKey(); update();
-    },0);
   }
+  // single chars handled by input event — do NOT process here
 });
 
 // ── Reset ──
