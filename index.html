@@ -28,7 +28,7 @@ body.dark{--light:var(--night);--dark-col:var(--day);--shadow:#030307;--bounce-l
 @keyframes sunrise{0%{background-color:var(--night)}10%{background-color:var(--dawn)}35%{background-color:var(--morning)}100%{background-color:var(--day)}}
 @keyframes sunset{0%{background-color:var(--day)}30%{background-color:var(--evening)}60%{background-color:var(--dusk)}90%{background-color:var(--dawn)}100%{background-color:var(--night)}}
 
-canvas#c{position:fixed;inset:0;background:transparent;z-index:3;}
+canvas#c{position:fixed;inset:0;background:transparent;z-index:3;pointer-events:auto;}
 
 /* sunlit overlay */
 #dappled-light{pointer-events:none;position:fixed;height:100vh;width:100vw;z-index:2;display:none;}
@@ -412,6 +412,7 @@ document.getElementById('btn-reset').addEventListener('click',()=>{
 
 // ── Mouse ──
 const mouse=Mouse.create(canvas);
+mouse.pixelRatio = DPR;
 const mcon=MouseConstraint.create(eng,{mouse,constraint:{stiffness:0.12,damping:0.1,render:{visible:false}}});
 World.add(world,mcon);
 mouse.element.removeEventListener('mousewheel',mouse.mousewheel);
