@@ -16,16 +16,17 @@
 html,body{height:100%;overflow:hidden;background:#f7f5f0;transition:background .4s;}
 canvas{position:fixed;inset:0;}
 #hint,#btn-reset,#btn-mute,#btn-dark{
-  font-family:'Noto Serif SC',Georgia,serif;
-  font-size:14px;letter-spacing:2px;color:#c8c0b4;
+  font-family:'Instrument Serif',serif;
+  font-size:14px;letter-spacing:-0.02em;color:#c8c0b4;
   background:none;border:none;-webkit-tap-highlight-color:transparent;
+  padding:0;
 }
-#hint{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);pointer-events:none;transition:opacity .8s;white-space:nowrap;}
-#btn-reset{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));cursor:pointer;}
+#hint{position:fixed;bottom:calc(22px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);pointer-events:none;transition:opacity .8s;white-space:nowrap;line-height:1;}
+#btn-reset{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));cursor:pointer;line-height:1;padding:4px 0;}
 #btn-reset:hover{color:#888;}
-#btn-mute{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));cursor:pointer;}
+#btn-mute{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));cursor:pointer;line-height:1;padding:4px 0;}
 #btn-mute:hover{color:#888;}
-#btn-dark{position:fixed;top:20px;right:20px;cursor:pointer;}
+#btn-dark{position:fixed;top:20px;right:20px;cursor:pointer;line-height:1;padding:4px 0;}
 #btn-dark:hover{color:#888;}
 #title{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Instrument Serif',serif;font-size:clamp(28px,8vw,52px);color:#c8c0b4;pointer-events:none;letter-spacing:-0.02em;transition:opacity .6s;}
 </style>
@@ -283,10 +284,12 @@ function findBodyNear(tx,ty){
 
 window.addEventListener('touchstart',e=>{
   if(ac&&ac.state==='suspended') ac.resume();
+  // don't focus keyboard when tapping UI buttons
+  const tag=e.target.tagName;
+  if(tag==='BUTTON'||tag==='A') return;
   const t=e.touches[0];
   const near=findBodyNear(t.clientX, t.clientY);
   if(near){
-    // dragging a char — don't focus keyboard
     touchBody=near;
     touchOffset={x:near.position.x-t.clientX, y:near.position.y-t.clientY};
   } else {
