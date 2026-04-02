@@ -19,7 +19,7 @@ canvas{position:fixed;inset:0;}
 #btn-reset:hover{color:#888;}
 #btn-mute{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));cursor:pointer;}
 #btn-mute:hover{color:#888;}
-#title{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Instrument Serif',serif;font-size:clamp(28px,8vw,52px);color:#c8c0b4;pointer-events:none;letter-spacing:0.02em;transition:opacity .6s;}
+#title{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Instrument Serif',serif;font-size:clamp(28px,8vw,52px);color:#c8c0b4;pointer-events:none;letter-spacing:-0.02em;transition:opacity .6s;}
 </style>
 </head>
 <body>
@@ -42,7 +42,7 @@ const vv  = window.visualViewport;
 function resize(){
   W = vv ? vv.width  : window.innerWidth;
   H = vv ? vv.height : window.innerHeight;
-  floorY = H - 52; // leave room for bottom bar
+  floorY = H - 48; // space for bottom bar only (vv already excludes keyboard)
   canvas.width  = Math.round(W * DPR);
   canvas.height = Math.round(H * DPR);
   canvas.style.width  = W + 'px';
@@ -323,6 +323,7 @@ mouse.element.removeEventListener('mousewheel',mouse.mousewheel);
 function draw(){
   requestAnimationFrame(draw);
   Engine.update(eng,1000/60);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); // ensure transform after any resize
   tick++;
   ctx.clearRect(0,0,W,H);
   ctx.font=FONT; ctx.fillStyle='#1e1a14';
