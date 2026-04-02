@@ -24,7 +24,9 @@ body{
 }
 body.animation-ready{animation-play-state:running;animation-duration:1s;animation-name:sunrise;}
 body.animation-ready.dark{animation-duration:1.7s;animation-name:sunset;}
-body.rainy{--light:#adc4dc;}
+body.rainy{--light:#7aa8c8;}
+@keyframes torain{0%{background-color:var(--day)}100%{background-color:#7aa8c8}}
+body.rainy.animation-ready{animation-name:torain;animation-duration:1.2s;}
 body.dark{--light:var(--night);--dark-col:var(--day);--shadow:#030307;--bounce-light:#1b293f;}
 @keyframes sunrise{0%{background-color:var(--night)}10%{background-color:var(--dawn)}35%{background-color:var(--morning)}100%{background-color:var(--day)}}
 @keyframes sunset{0%{background-color:var(--day)}30%{background-color:var(--evening)}60%{background-color:var(--dusk)}90%{background-color:var(--dawn)}100%{background-color:var(--night)}}
@@ -74,7 +76,7 @@ body.sunny #dappled-light{display:block;}
 #btn-dark:hover{color:#888;}
 #btn-flow{position:fixed;top:12px;left:12px;cursor:pointer;line-height:1;z-index:200;padding:12px;}
 #btn-flow:hover{color:#888;}
-#btn-flow.active{color:#b0a898;text-decoration:underline;}
+#btn-flow.active{color:#7a6e65;}
 #title{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Instrument Serif',serif;font-size:clamp(28px,8vw,52px);color:#c8c0b4;pointer-events:none;letter-spacing:-0.02em;transition:opacity .6s;z-index:200;}
 </style>
 </head>
@@ -102,7 +104,7 @@ body.sunny #dappled-light{display:block;}
 <button id="btn-mute" onmousedown="event.preventDefault()" ontouchstart="event.stopPropagation()">sound</button>
 </div>
 <button id="btn-dark" onmousedown="event.preventDefault()" ontouchstart="event.stopPropagation()">B</button>
-<button id="btn-flow" onmousedown="event.preventDefault()" ontouchstart="event.stopPropagation()">flow</button>
+<button id="btn-flow" onmousedown="event.preventDefault()" ontouchstart="event.stopPropagation()">F</button>
 <div id="title">Drop Text</div>
 <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
 <script>
@@ -161,7 +163,7 @@ window.addEventListener('resize', resize);
 const THEMES = {
   light: { bg:'#f7f5f0', ink:'#1e1a14', progress:'#b0a898', fakeBg:'#f7f5f0' },
   dark:  { bg:'#151311', ink:'#e8e4dc', progress:'#4a4640', fakeBg:'#151311' },
-  rain:  { bg:'#adc4dc', ink:'#1e2835', progress:'#5a7899', fakeBg:'#adc4dc' },
+  rain:  { bg:'#7aa8c8', ink:'#1a2535', progress:'#4a6888', fakeBg:'#7aa8c8' },
 };
 // init sunlit shutters
 (function(){
