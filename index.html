@@ -34,14 +34,11 @@ canvas#c{position:fixed;inset:0;background:transparent;z-index:1;}
 #dappled-light{pointer-events:none;position:fixed;height:100vh;width:100vw;z-index:2;display:none;}
 body.sunny #dappled-light{display:block;}
 #progressive-blur{position:absolute;height:100%;width:100%;}
-/* remove progressive-blur, use a soft fade mask instead */
+/* remove progressive-blur, use mask on .perspective instead */
 #progressive-blur{display:none;}
-/* soft fade: left side fades to transparent */
-#dappled-light::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(to right, var(--day) 0%, rgba(247,245,240,0.85) 18%, rgba(247,245,240,0.4) 35%, transparent 55%);z-index:10;}
-body.dark #dappled-light::after{background:linear-gradient(to right, var(--night) 0%, rgba(21,19,17,0.85) 18%, rgba(21,19,17,0.4) 35%, transparent 55%);}
 #glow{position:absolute;background:linear-gradient(309deg,var(--bounce-light),var(--bounce-light) 20%,transparent);transition:background 1.0s var(--timing-fn);height:100%;width:100%;opacity:0.35;mix-blend-mode:multiply;}
 #glow-bounce{position:absolute;background:linear-gradient(355deg,var(--bounce-light) 0%,transparent 30%);transition:background 1.0s var(--timing-fn);opacity:0.35;height:100%;width:100%;bottom:0;mix-blend-mode:multiply;}
-.perspective{position:absolute;transition:transform 1.7s var(--timing-fn),opacity 1s ease;top:-30vh;right:0;width:80vw;height:130vh;opacity:0.7;transform-origin:top right;transform:matrix3d(0.7500,-0.0625,0,0.0008,0,1,0,0,0,0,1,0,0,0,0,1);}
+.perspective{position:absolute;transition:transform 1.7s var(--timing-fn),opacity 1s ease;top:-30vh;right:0;width:80vw;height:130vh;opacity:0.7;transform-origin:top right;transform:matrix3d(0.7500,-0.0625,0,0.0008,0,1,0,0,0,0,1,0,0,0,0,1);-webkit-mask-image:linear-gradient(to right,transparent 0%,black 25%,black 65%,transparent 100%);mask-image:linear-gradient(to right,transparent 0%,black 25%,black 65%,transparent 100%);}
 #blinds{position:relative;width:100%;mix-blend-mode:multiply;}
 #blinds .shutter,#blinds .bar{background-color:var(--shadow);}
 #blinds>.shutters{display:flex;flex-direction:column;align-items:stretch;gap:52px;}
