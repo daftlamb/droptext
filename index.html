@@ -285,7 +285,7 @@ ime.addEventListener('compositionend',e=>{
 
 window.addEventListener('keydown',e=>{
   if(composing||lockInput) return;
-  if(Date.now()-lastFocusTime<300) return; // block spurious keydown on mobile focus
+  if(Date.now()-lastFocusTime<600) return; // iOS fires keydown late after focus
   if(e.key==='Backspace'){
     e.preventDefault();
     if(typed.length){ typed=typed.slice(0,-1); playKey(); update(); }
