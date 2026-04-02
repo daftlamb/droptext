@@ -279,17 +279,8 @@ ime.addEventListener('compositionend',e=>{
   const val=e.data||'';
   ime.value='';
   if(lockInput||!val) return;
-  if(Date.now()-lastFocusTime<300) return; // block spurious IME on mobile focus
-  typed+=val; update();
-});
-// input event only for cases compositionend misses (some Android IME)
-ime.addEventListener('input',()=>{
-  if(composing||lockInput) return;
   if(Date.now()-lastFocusTime<300) return;
-  const val=ime.value;
-  if(!val) return;
-  ime.value='';
-  typed+=val; playKey(); update();
+  typed+=val; update();
 });
 
 window.addEventListener('keydown',e=>{
