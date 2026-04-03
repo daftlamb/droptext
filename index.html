@@ -450,33 +450,54 @@ function startSunnySound(){
   if(muted||sunnyAmb) return;
   try{
     Tone.start();
-    const reverb=new Tone.Reverb({decay:12,wet:0.7}).toDestination();
-    const vol=new Tone.Volume(-18).connect(reverb);
-    // slow chord pad: stack of detuned sine oscillators
-    const notes=['C4','E4','G4','B4','D5'];
-    const synths=notes.map((note,i)=>{
+    const reverb=new Tone.Reverb({decay:15,wet:0.6}).toDestination();
+    const vol=new Tone.Volume(-22).connect(reverb);
+    
+    // Slow breathing pad
+    const notes=['C4','E4','A4','B4','D5'];
+    const synths=notes.map((note)=>{
       const s=new Tone.Synth({
-        oscillator:{type:'sine'},
-        envelope:{attack:4,decay:0,sustain:1,release:6},
+        oscillator:{type:'fatsine', count:3, spread:15},
+        envelope:{attack:5,decay:0,sustain:1,release:8},
       }).connect(vol);
       s.triggerAttack(note);
       return s;
     });
-    // slow LFO on volume for breathing effect
-    const lfo=new Tone.LFO({frequency:'0.04',min:-28,max:-14}).connect(vol.volume);
-    lfo.start();
-    sunnyAmb={synths,lfo,vol,reverb};
+
+    // Wind/Leaf rustle (soft pink noise with slow moving filter)
+    const noise=new Tone.Noise('pink').start();
+    const filter=new Tone.AutoFilter({frequency:0.05, baseFrequency:800, octaves:2.5}).connect(vol);
+    noise.connect(filter);
+    filter.start();
+
+    // Distant "chime/bird" sparkles
+    const chime=new Tone.PolySynth(Tone.Synth, {
+      oscillator:{type:'sine'},
+      envelope:{attack:0.1, decay:0.8, sustain:0.1, release:1.2}
+    }).connect(vol);
+    const chimeLoop=new Tone.Loop(time=>{
+      if(Math.random()>0.4){
+        const n=['C6','E6','G6','A6','B6'][Math.floor(Math.random()*5)];
+        chime.triggerAttackRelease(n, '16n', time, 0.2+Math.random()*0.3);
+      }
+    }, '2n').start('+2');
+
+    sunnyAmb={synths,noise,filter,chime,chimeLoop,vol,reverb};
   }catch(e){}
 }
 function stopSunnySound(){
   if(!sunnyAmb) return;
   try{
-    sunnyAmb.lfo.stop();
+    sunnyAmb.chimeLoop.stop();
     sunnyAmb.synths.forEach(s=>s.triggerRelease());
+    sunnyAmb.vol.volume.rampTo(-60, 5);
     setTimeout(()=>{
-      try{sunnyAmb.lfo.dispose();sunnyAmb.synths.forEach(s=>s.dispose());sunnyAmb.vol.dispose();sunnyAmb.reverb.dispose();}catch(e){}
+      try{
+        sunnyAmb.noise.stop();
+        Object.values(sunnyAmb).forEach(v=>{ if(v&&typeof v.dispose==='function') v.dispose(); });
+      }catch(e){}
       sunnyAmb=null;
-    },8000);
+    },6000);
   }catch(e){ sunnyAmb=null; }
 }
 
@@ -486,40 +507,46 @@ function startRainSound(){
   if(muted||rainAmb) return;
   try{
     Tone.start();
-    // background white noise through filters = rain ambience
-    const noise=new Tone.Noise('pink').start();
-    const hipass=new Tone.Filter(1800,'highpass');
-    const lopass=new Tone.Filter(8000,'lowpass');
-    const vol=new Tone.Volume(-28);
-    const reverb=new Tone.Reverb({decay:3,wet:0.4}).toDestination();
-    noise.connect(hipass); hipass.connect(lopass); lopass.connect(vol); vol.connect(reverb);
-    // fade in
-    vol.volume.rampTo(-22,2);
-    // individual drip synth
-    const drip=new Tone.MetalSynth({
-      frequency:400, envelope:{attack:0.001,decay:0.3,release:0.2},
-      harmonicity:5.1, modulationIndex:32, resonance:4000, octaves:1.5,
-    }).toDestination();
-    drip.volume.value=-28;
-    // random drip pattern
-    const loop=new Tone.Loop(time=>{
-      if(muted) return;
-      drip.frequency.value=300+Math.random()*400;
-      drip.triggerAttackRelease('16n', time);
-    }, `${0.3+Math.random()*0.8}`);
-    loop.start('+0.5');
-    // vary interval for naturalness
-    const intervalVar=setInterval(()=>{ if(loop) loop.interval=`${0.25+Math.random()*1.2}`; },2000);
-    rainAmb={noise,hipass,lopass,vol,reverb,drip,loop,intervalVar};
+    const reverb=new Tone.Reverb({decay:4,wet:0.5}).toDestination();
+    const mainVol=new Tone.Volume(-24).connect(reverb);
+
+    // Layer 1: Distant wash (Pink Noise)
+    const wash=new Tone.Noise('pink').start();
+    const washFilter=new Tone.Filter(1200, 'lowpass').connect(mainVol);
+    wash.connect(washFilter);
+
+    // Layer 2: Close patter (White Noise with fast envelopes)
+    const patter=new Tone.Noise('white').start();
+    const patterFilter=new Tone.Filter(3500, 'highpass');
+    const patterEnv=new Tone.AmplitudeEnvelope({attack:0.001, decay:0.02, sustain:0, release:0.02});
+    patter.connect(patterFilter); patterFilter.connect(patterEnv); patterEnv.connect(mainVol);
+    const patterLoop=new Tone.Loop(time=>{
+      patterEnv.triggerAttack(time, 0.1+Math.random()*0.2);
+    }, '32n').start();
+
+    // Layer 3: Occasional heavy drips (MembraneSynth)
+    const drip=new Tone.MembraneSynth({
+      pitchDecay:0.005, octaves:2, envelope:{attack:0.001, decay:0.4, sustain:0.01, release:0.4}
+    }).connect(mainVol);
+    drip.volume.value=-15;
+    const dripLoop=new Tone.Loop(time=>{
+      if(Math.random()>0.6){
+        drip.triggerAttackRelease(400+Math.random()*1200, '32n', time, 0.1+Math.random()*0.3);
+      }
+    }, '4n').start();
+
+    rainAmb={wash,washFilter,patter,patterEnv,patterLoop,drip,dripLoop,mainVol,reverb};
   }catch(e){}
 }
 function stopRainSound(){
   if(!rainAmb) return;
-  clearInterval(rainAmb.intervalVar);
   try{
-    rainAmb.loop.stop(); rainAmb.vol.volume.rampTo(-60,1.5);
+    rainAmb.mainVol.volume.rampTo(-60, 2);
     setTimeout(()=>{
-      try{Object.values(rainAmb).forEach(v=>{ if(v&&typeof v.dispose==='function') v.dispose(); });}catch(e){}
+      try{
+        rainAmb.wash.stop(); rainAmb.patter.stop();
+        Object.values(rainAmb).forEach(v=>{ if(v&&typeof v.dispose==='function') v.dispose(); });
+      }catch(e){}
       rainAmb=null;
     },2000);
   }catch(e){ rainAmb=null; }
