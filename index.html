@@ -345,18 +345,26 @@ function playKey(){
 
     // piano envelope: fast attack, medium decay, no sustain
     master.gain.setValueAtTime(0,now);
-    master.gain.linearRampToValueAtTime(0.12,now+0.008);
-    master.gain.exponentialRampToValueAtTime(0.04,now+0.12);
+    master.gain.linearRampToValueAtTime(0.085,now+0.008);
+    master.gain.exponentialRampToValueAtTime(0.028,now+0.12);
     master.gain.exponentialRampToValueAtTime(0.0001,now+dur);
 
     g1.gain.value=1.0;
-    g2.gain.value=0.35;
-    g3.gain.value=0.08;
+    g2.gain.value=0.55;  // more 2nd harmonic = warmer/darker
+    g3.gain.value=0.18;  // more 3rd = richer, less bright
 
     o1.connect(g1); g1.connect(master);
     o2.connect(g2); g2.connect(master);
     o3.connect(g3); g3.connect(master);
+
+    // small reverb tail
+    const rvLen=Math.floor(a.sampleRate*1.2);
+    const rvBuf=a.createBuffer(2,rvLen,a.sampleRate);
+    for(let c=0;c<2;c++){ const ch=rvBuf.getChannelData(c); for(let i=0;i<rvLen;i++) ch[i]=(Math.random()*2-1)*Math.pow(1-i/rvLen,2.8); }
+    const rv=a.createConvolver(); rv.buffer=rvBuf;
+    const rvWet=a.createGain(); rvWet.gain.value=0.12;
     master.connect(a.destination);
+    master.connect(rv); rv.connect(rvWet); rvWet.connect(a.destination);
 
     o1.start(now); o2.start(now); o3.start(now);
     o1.stop(now+dur); o2.stop(now+dur); o3.stop(now+dur);
