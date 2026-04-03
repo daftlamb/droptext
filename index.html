@@ -327,16 +327,25 @@ function playThud(vol){
   if(muted) return;
   const gainVal = (vol !== undefined) ? vol : 0.16;
   try{
-    const a=getAC(),dur=0.14;
+    const a=getAC(),dur=0.18;
     const buf=a.createBuffer(1,Math.floor(a.sampleRate*dur),a.sampleRate);
     const d=buf.getChannelData(0);
-    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2)*0.5;
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3);
     const src=a.createBufferSource(); src.buffer=buf;
     const g=a.createGain();
     g.gain.setValueAtTime(gainVal,a.currentTime);
     g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+dur);
-    const f=a.createBiquadFilter(); f.type='lowpass'; f.frequency.value=280;
-    src.connect(f); f.connect(g); g.connect(a.destination); src.start();
+    // low thud
+    const fLow=a.createBiquadFilter(); fLow.type='lowpass'; fLow.frequency.value=320; fLow.Q.value=0.8;
+    // crisp transient: bandpass around 3kHz
+    const src2=a.createBufferSource(); src2.buffer=buf;
+    const g2=a.createGain();
+    g2.gain.setValueAtTime(gainVal*0.4,a.currentTime);
+    g2.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+0.04);
+    const fCrisp=a.createBiquadFilter(); fCrisp.type='bandpass'; fCrisp.frequency.value=3200; fCrisp.Q.value=2;
+    src.connect(fLow); fLow.connect(g); g.connect(a.destination);
+    src2.connect(fCrisp); fCrisp.connect(g2); g2.connect(a.destination);
+    src.start(); src2.start();
   }catch(e){}
 }
 
@@ -345,14 +354,13 @@ function playThud(vol){
   const cv=document.getElementById('cv-rain');
   const cx=cv.getContext('2d');
   const drops=[], splashes=[];
-  // simple layered noise for sky texture
   function noise(x,y,t){ return Math.sin(x*0.008+t)*Math.cos(y*0.006+t*0.7)+Math.sin(x*0.003-t*0.5)*Math.cos(y*0.004+t*0.3); }
   function fit(){
     cv.width=innerWidth; cv.height=innerHeight;
     drops.length=0;
     for(let i=0;i<60;i++) drops.push({
       x:Math.random()*cv.width, y:Math.random()*cv.height,
-      spd:4+Math.random()*3, len:10+Math.random()*12, alpha:0.28+Math.random()*0.22
+      spd:5+Math.random()*4, len:12+Math.random()*14, alpha:0.32+Math.random()*0.22
     });
   }
   addEventListener('resize',fit); fit();
@@ -361,7 +369,7 @@ function playThud(vol){
     requestAnimationFrame(tick);
     const w=cv.width,h=cv.height; t+=0.003;
     cx.clearRect(0,0,w,h);
-    // perlin-like sky: sample noise in a grid, draw soft blobs
+    // perlin-like sky clouds
     const step=80;
     for(let x=0;x<w+step;x+=step){
       for(let y=0;y<h*0.55;y+=step){
@@ -380,13 +388,25 @@ function playThud(vol){
       cx.beginPath(); cx.moveTo(d.x,d.y); cx.lineTo(d.x-d.len*0.15,d.y-d.len);
       cx.strokeStyle=`rgba(60,100,150,${d.alpha})`; cx.lineWidth=1.2; cx.stroke();
       d.y+=d.spd;
-      if(d.y>h+20){ splashes.push({x:d.x,y:h-4,r:0,alpha:0.25}); d.x=Math.random()*w; d.y=-20; }
+      if(d.y>h-2){
+        // spawn splash at actual impact point near bottom
+        const sy=Math.min(d.y, h-4);
+        splashes.push({x:d.x, y:sy, r:0, maxR:6+Math.random()*6, alpha:0.5+Math.random()*0.2});
+        d.x=Math.random()*w; d.y=-20;
+      }
     });
+    // splashes — 2-3 ellipse ripples per impact
     for(let i=splashes.length-1;i>=0;i--){
       const s=splashes[i];
-      cx.beginPath(); cx.ellipse(s.x,s.y,s.r*2.2,s.r*0.5,0,0,Math.PI*2);
-      cx.strokeStyle=`rgba(100,140,180,${s.alpha})`; cx.lineWidth=0.6; cx.stroke();
-      s.r+=0.6; s.alpha-=0.02; if(s.alpha<=0) splashes.splice(i,1);
+      cx.beginPath(); cx.ellipse(s.x,s.y,s.r*2.5,s.r*0.6,0,0,Math.PI*2);
+      cx.strokeStyle=`rgba(120,160,200,${s.alpha})`; cx.lineWidth=0.8; cx.stroke();
+      // inner smaller ring
+      if(s.r>1){
+        cx.beginPath(); cx.ellipse(s.x,s.y,s.r*1.1,s.r*0.28,0,0,Math.PI*2);
+        cx.strokeStyle=`rgba(160,190,220,${s.alpha*0.6})`; cx.lineWidth=0.5; cx.stroke();
+      }
+      s.r+=0.55; s.alpha-=0.025;
+      if(s.alpha<=0 || s.r>s.maxR) splashes.splice(i,1);
     }
   }
   requestAnimationFrame(tick);
@@ -397,19 +417,21 @@ function playThud(vol){
   const cv=document.getElementById('cv-night');
   const cx=cv.getContext('2d');
   const stars=[];
+  // global very slow drift for entire star field
+  let fieldX=0, fieldY=0;
+  const fieldVX=0.012, fieldVY=0.004; // pixels per frame — extremely slow
   function fit(){
     cv.width=innerWidth; cv.height=innerHeight;
     stars.length=0;
     for(let i=0;i<80;i++) stars.push({
-      x:Math.random()*cv.width, y:Math.random()*cv.height*0.80,
+      x:Math.random()*cv.width*1.3-cv.width*0.15,
+      y:Math.random()*cv.height*1.0,
       r:Math.random()*1.3+0.3, base:Math.random()*0.5+0.4,
       phase:Math.random()*Math.PI*2, spd:0.08+Math.random()*0.25,
-      dx:(Math.random()-0.5)*0.008, dy:(Math.random()-0.5)*0.003, // slow drift
-      flash:0 // flash countdown
+      flash:0
     });
   }
   addEventListener('resize',fit); fit();
-  // random flash trigger
   function scheduleFlash(){
     const idx=Math.floor(Math.random()*stars.length);
     stars[idx].flash=1.0;
@@ -420,24 +442,24 @@ function playThud(vol){
     requestAnimationFrame(tick);
     const w=cv.width,h=cv.height;
     cx.clearRect(0,0,w,h);
+    // advance global field position (wrap)
+    fieldX=(fieldX+fieldVX)%(w*0.3);
+    fieldY=(fieldY+fieldVY)%(h*0.2);
     stars.forEach(s=>{
-      // drift
-      s.x+=s.dx; s.y+=s.dy;
-      if(s.x<0) s.x=w; if(s.x>w) s.x=0;
-      if(s.y<0) s.y=h*0.8; if(s.y>h*0.8) s.y=0;
-      // flash
+      // apply global field offset (wrap each star)
+      const sx=(s.x+fieldX+w)%w;
+      const sy=(s.y+fieldY+h)%h;
       let extra=0;
       if(s.flash>0){ extra=s.flash*0.6; s.flash=Math.max(0,s.flash-0.02); }
       const a=Math.min(1, s.base+Math.sin(now*0.0003*s.spd+s.phase)*0.18+extra);
       const r=s.r*(1+extra*1.2);
       if(extra>0.1){
-        // glow
-        const grd=cx.createRadialGradient(s.x,s.y,0,s.x,s.y,r*4);
+        const grd=cx.createRadialGradient(sx,sy,0,sx,sy,r*4);
         grd.addColorStop(0,`rgba(220,230,255,${extra*0.5})`);
         grd.addColorStop(1,'rgba(220,230,255,0)');
-        cx.fillStyle=grd; cx.beginPath(); cx.arc(s.x,s.y,r*4,0,Math.PI*2); cx.fill();
+        cx.fillStyle=grd; cx.beginPath(); cx.arc(sx,sy,r*4,0,Math.PI*2); cx.fill();
       }
-      cx.beginPath(); cx.arc(s.x,s.y,r,0,Math.PI*2);
+      cx.beginPath(); cx.arc(sx,sy,r,0,Math.PI*2);
       cx.fillStyle=`rgba(210,218,238,${a})`; cx.fill();
     });
   }
