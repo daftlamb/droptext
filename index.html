@@ -466,7 +466,9 @@ function startSunnySound(){
 
     // Wind/Leaf rustle - significantly reduced/removed "noisy" part
     const noise=new Tone.Noise('brown').start();
+    const lfo = new Tone.LFO(0.1, 300, 1200).start();
     const filter=new Tone.AutoFilter({frequency:0.03, baseFrequency:400, octaves:1.5}).connect(vol);
+    lfo.connect(filter.frequency);
     noise.connect(filter);
     filter.start();
     noise.volume.value=-35; // Lower base volume for noise
