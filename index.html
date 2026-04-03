@@ -107,6 +107,7 @@ body.sunny #dappled-light{display:block;}
 <button id="btn-flow" onmousedown="event.preventDefault()" ontouchstart="event.stopPropagation()">F</button>
 <div id="title">Drop Text</div>
 <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.js"></script>
 <script>
 (function(){
 const { Engine, Bodies, Body, World, Mouse, MouseConstraint, Constraint } = Matter;
@@ -182,9 +183,10 @@ document.getElementById('btn-dark').addEventListener('click',()=>{
   bd.classList.remove('dark','sunny','rainy','nightly');
   bd.classList.add('animation-ready');
   if(modeIdx === 0){ T = THEMES.light; }
-  if(modeIdx === 1){ T = THEMES.light; bd.classList.add('sunny'); }
+  if(modeIdx === 1){ T = THEMES.light; bd.classList.add('sunny'); startSunnySound(); }
   if(modeIdx === 2){ T = THEMES.rain;  bd.classList.add('rainy'); startRainSound(); }
   if(modeIdx === 3){ T = THEMES.dark;  bd.classList.add('dark','nightly'); startCicadaSound(); }
+  if(modeIdx !== 1) stopSunnySound();
   if(modeIdx !== 2) stopRainSound();
   if(modeIdx !== 3) stopCicadaSound();
   document.getElementById('btn-dark').textContent = MODES[modeIdx];
@@ -442,51 +444,85 @@ function playThud(){
 })();
 
 // ── Rain sound ──
-let rainTimers=[], rainBgNode=null, rainBgGain=null;
-function playRainDrop(){
-  if(muted) return;
+// ── Sunny ambient (Tone.js) ──
+let sunnyAmb=null;
+function startSunnySound(){
+  if(muted||sunnyAmb) return;
   try{
-    const a=getAC();
-    const dur=0.18+Math.random()*0.12;
-    const buf=a.createBuffer(1,Math.floor(a.sampleRate*dur),a.sampleRate);
-    const d=buf.getChannelData(0);
-    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3);
-    const src=a.createBufferSource(); src.buffer=buf;
-    const f=a.createBiquadFilter(); f.type='bandpass';
-    f.frequency.value=900+Math.random()*600; f.Q.value=3+Math.random()*4;
-    const g=a.createGain();
-    g.gain.setValueAtTime(0.05+Math.random()*0.06, a.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime+dur);
-    src.connect(f); f.connect(g); g.connect(a.destination); src.start();
+    Tone.start();
+    const reverb=new Tone.Reverb({decay:12,wet:0.7}).toDestination();
+    const vol=new Tone.Volume(-18).connect(reverb);
+    // slow chord pad: stack of detuned sine oscillators
+    const notes=['C4','E4','G4','B4','D5'];
+    const synths=notes.map((note,i)=>{
+      const s=new Tone.Synth({
+        oscillator:{type:'sine'},
+        envelope:{attack:4,decay:0,sustain:1,release:6},
+      }).connect(vol);
+      s.triggerAttack(note);
+      return s;
+    });
+    // slow LFO on volume for breathing effect
+    const lfo=new Tone.LFO({frequency:'0.04',min:-28,max:-14}).connect(vol.volume);
+    lfo.start();
+    sunnyAmb={synths,lfo,vol,reverb};
   }catch(e){}
 }
-function startRainSound(){
-  if(rainBgNode) return;
+function stopSunnySound(){
+  if(!sunnyAmb) return;
   try{
-    // very faint background drizzle
-    const a=getAC();
-    const buf=a.createBuffer(1,a.sampleRate*2,a.sampleRate);
-    const d=buf.getChannelData(0);
-    for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
-    rainBgNode=a.createBufferSource(); rainBgNode.buffer=buf; rainBgNode.loop=true;
-    const f=a.createBiquadFilter(); f.type='highpass'; f.frequency.value=3000; f.Q.value=0.5;
-    rainBgGain=a.createGain(); rainBgGain.gain.setValueAtTime(0,a.currentTime);
-    rainBgGain.gain.linearRampToValueAtTime(0.008,a.currentTime+2);
-    rainBgNode.connect(f); f.connect(rainBgGain); rainBgGain.connect(a.destination);
-    rainBgNode.start();
+    sunnyAmb.lfo.stop();
+    sunnyAmb.synths.forEach(s=>s.triggerRelease());
+    setTimeout(()=>{
+      try{sunnyAmb.lfo.dispose();sunnyAmb.synths.forEach(s=>s.dispose());sunnyAmb.vol.dispose();sunnyAmb.reverb.dispose();}catch(e){}
+      sunnyAmb=null;
+    },8000);
+  }catch(e){ sunnyAmb=null; }
+}
+
+// ── Rain sound (Tone.js) ──
+let rainAmb=null;
+function startRainSound(){
+  if(muted||rainAmb) return;
+  try{
+    Tone.start();
+    // background white noise through filters = rain ambience
+    const noise=new Tone.Noise('pink').start();
+    const hipass=new Tone.Filter(1800,'highpass');
+    const lopass=new Tone.Filter(8000,'lowpass');
+    const vol=new Tone.Volume(-28);
+    const reverb=new Tone.Reverb({decay:3,wet:0.4}).toDestination();
+    noise.connect(hipass); hipass.connect(lopass); lopass.connect(vol); vol.connect(reverb);
+    // fade in
+    vol.volume.rampTo(-22,2);
+    // individual drip synth
+    const drip=new Tone.MetalSynth({
+      frequency:400, envelope:{attack:0.001,decay:0.3,release:0.2},
+      harmonicity:5.1, modulationIndex:32, resonance:4000, octaves:1.5,
+    }).toDestination();
+    drip.volume.value=-28;
+    // random drip pattern
+    const loop=new Tone.Loop(time=>{
+      if(muted) return;
+      drip.frequency.value=300+Math.random()*400;
+      drip.triggerAttackRelease('16n', time);
+    }, `${0.3+Math.random()*0.8}`);
+    loop.start('+0.5');
+    // vary interval for naturalness
+    const intervalVar=setInterval(()=>{ if(loop) loop.interval=`${0.25+Math.random()*1.2}`; },2000);
+    rainAmb={noise,hipass,lopass,vol,reverb,drip,loop,intervalVar};
   }catch(e){}
-  // schedule individual drops
-  function schedDrop(){
-    playRainDrop();
-    const t=rainTimers.push(setTimeout(schedDrop, 300+Math.random()*900));
-  }
-  schedDrop();
 }
 function stopRainSound(){
-  rainTimers.forEach(clearTimeout); rainTimers=[];
-  if(!rainBgNode) return;
-  try{ rainBgGain.gain.linearRampToValueAtTime(0,rainBgGain.context.currentTime+1); }catch(e){}
-  setTimeout(()=>{ try{rainBgNode.stop();}catch(e){} rainBgNode=null; rainBgGain=null; },1200);
+  if(!rainAmb) return;
+  clearInterval(rainAmb.intervalVar);
+  try{
+    rainAmb.loop.stop(); rainAmb.vol.volume.rampTo(-60,1.5);
+    setTimeout(()=>{
+      try{Object.values(rainAmb).forEach(v=>{ if(v&&typeof v.dispose==='function') v.dispose(); });}catch(e){}
+      rainAmb=null;
+    },2000);
+  }catch(e){ rainAmb=null; }
 }
 
 // ── Cricket + wind sound ──
