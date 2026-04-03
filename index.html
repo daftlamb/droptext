@@ -16,7 +16,7 @@
 html{height:100%;}
 body{
   height:100%;overflow:hidden;
-  --day:#f7f5f0;--evening:#fccc83;--dusk:#db7a2a;--night:#151311;--dawn:#16132b;--morning:#9fb3bf;
+  --day:#f7f5f0;--evening:#fccc83;--dusk:#db7a2a;--night:#1a1a2e;--dawn:#16132b;--morning:#9fb3bf;
   --light:var(--day);--dark-col:#1e1a14;--shadow:#ddd0be;--bounce-light:#f5d7a6;
   --timing-fn:cubic-bezier(0.455,0.190,0.000,0.985);
   background-color:var(--light);
@@ -32,7 +32,7 @@ body.dark{--light:var(--night);--dark-col:var(--day);--shadow:#030307;--bounce-l
 @keyframes sunset{0%{background-color:var(--day)}30%{background-color:var(--evening)}60%{background-color:var(--dusk)}90%{background-color:var(--dawn)}100%{background-color:var(--night)}}
 
 canvas#c{position:fixed;inset:0;background:transparent;z-index:3;pointer-events:auto;}
-#cv-rain,#cv-night{pointer-events:none;position:fixed;inset:0;width:100%;height:100%;z-index:2;opacity:0;transition:opacity 1.5s ease;}
+#cv-rain,#cv-night{pointer-events:none;position:fixed;inset:0;width:100%;height:100%;z-index:4;opacity:0;transition:opacity 1.5s ease;}
 body.rainy  #cv-rain {opacity:1;}
 body.nightly #cv-night{opacity:1;}
 
@@ -163,7 +163,7 @@ window.addEventListener('resize', resize);
 // ── Theme ──
 const THEMES = {
   light: { bg:'#f7f5f0', ink:'#1e1a14', progress:'#b0a898', fakeBg:'#f7f5f0' },
-  dark:  { bg:'#151311', ink:'#e8e4dc', progress:'#4a4640', fakeBg:'#151311' },
+  dark:  { bg:'#1a1a2e', ink:'#e8e4dc', progress:'#4a4640', fakeBg:'#1a1a2e' },
   rain:  { bg:'#7aa8c8', ink:'#1a2535', progress:'#4a6888', fakeBg:'#7aa8c8' },
 };
 // init sunlit shutters
@@ -323,8 +323,9 @@ function playKey(){
     src.connect(f); f.connect(g); g.connect(a.destination); src.start();
   }catch(e){}
 }
-function playThud(){
+function playThud(vol){
   if(muted) return;
+  const gainVal = (vol !== undefined) ? vol : 0.16;
   try{
     const a=getAC(),dur=0.14;
     const buf=a.createBuffer(1,Math.floor(a.sampleRate*dur),a.sampleRate);
@@ -332,7 +333,7 @@ function playThud(){
     for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2)*0.5;
     const src=a.createBufferSource(); src.buffer=buf;
     const g=a.createGain();
-    g.gain.setValueAtTime(0.16,a.currentTime);
+    g.gain.setValueAtTime(gainVal,a.currentTime);
     g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+dur);
     const f=a.createBiquadFilter(); f.type='lowpass'; f.frequency.value=280;
     src.connect(f); f.connect(g); g.connect(a.destination); src.start();
@@ -451,9 +452,9 @@ function startSunnySound(){
   try{
     Tone.start();
     const reverb=new Tone.Reverb({decay:12,wet:0.4}).toDestination();
-    const vol=new Tone.Volume(-28).connect(reverb);
-    
-    // Slow breathing pad - even slower
+    const vol=new Tone.Volume(-34).connect(reverb); // reduced by ~30%
+
+    // Slow breathing pad
     const notes=['C4','E4','A4','B4','D5'];
     const synths=notes.map((note)=>{
       const s=new Tone.Synth({
@@ -464,16 +465,18 @@ function startSunnySound(){
       return s;
     });
 
-    // Wind/Leaf rustle - significantly reduced/removed "noisy" part
+    // Very slow LFO (0.05Hz ~20s cycle) modulating pitch detune
+    const slowLFO=new Tone.LFO({frequency:0.05, min:-15, max:15, type:'sine'}).start();
+    synths.forEach(s=>{ try{ slowLFO.connect(s.detune); }catch(e){} });
+
+    // Wind/Leaf rustle
     const noise=new Tone.Noise('brown').start();
-    const lfo = new Tone.LFO(0.1, 300, 1200).start();
     const filter=new Tone.AutoFilter({frequency:0.03, baseFrequency:400, octaves:1.5}).connect(vol);
-    lfo.connect(filter.frequency);
     noise.connect(filter);
     filter.start();
-    noise.volume.value=-35; // Lower base volume for noise
+    noise.volume.value=-40;
 
-    // Distant "chime/bird" sparkles - slower
+    // Distant chime sparkles
     const chime=new Tone.PolySynth(Tone.Synth, {
       oscillator:{type:'sine'},
       envelope:{attack:0.2, decay:1.2, sustain:0.1, release:2.0}
@@ -483,9 +486,9 @@ function startSunnySound(){
         const n=['C6','E6','G6','A6','B6'][Math.floor(Math.random()*5)];
         chime.triggerAttackRelease(n, '16n', time, 0.1+Math.random()*0.2);
       }
-    }, '1n').start('+4'); // Slower loop
+    }, '1n').start('+4');
 
-    sunnyAmb={synths,noise,filter,chime,chimeLoop,vol,reverb};
+    sunnyAmb={synths,noise,filter,chime,chimeLoop,vol,reverb,slowLFO};
   }catch(e){}
 }
 function stopSunnySound(){
@@ -588,10 +591,31 @@ function stopWindSound(){
   try{ windGain.gain.linearRampToValueAtTime(0,windGain.context.currentTime+2); }catch(e){}
   setTimeout(()=>{ try{windNode.stop();}catch(e){} windNode=null; windGain=null; },2200);
 }
+// cricket reverb convolver (lazy init, shared)
+let cricketReverb=null;
+function getCricketReverb(){
+  if(cricketReverb) return cricketReverb;
+  try{
+    const a=getAC();
+    const len=Math.floor(a.sampleRate*2.0);
+    const buf=a.createBuffer(2,len,a.sampleRate);
+    for(let c=0;c<2;c++){
+      const d=buf.getChannelData(c);
+      for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.5);
+    }
+    const conv=a.createConvolver(); conv.buffer=buf;
+    const wet=a.createGain(); wet.gain.value=0.55;
+    const dry=a.createGain(); dry.gain.value=0.45;
+    conv.connect(wet); wet.connect(a.destination);
+    cricketReverb={conv,wet,dry};
+  }catch(e){}
+  return cricketReverb;
+}
 function playCricket(){
   if(muted) return;
   try{
     const a=getAC();
+    const rv=getCricketReverb();
     const pulses=4, chirpDur=0.025, gap=0.035;
     for(let p=0;p<pulses;p++){
       const t=a.currentTime+p*(chirpDur+gap)+0.01;
@@ -607,7 +631,10 @@ function playCricket(){
       env.gain.linearRampToValueAtTime(0.09,t+0.004);
       env.gain.exponentialRampToValueAtTime(0.0001,t+chirpDur);
       const f=a.createBiquadFilter(); f.type='bandpass'; f.frequency.value=5500; f.Q.value=18;
-      osc.connect(f); f.connect(env); env.connect(a.destination);
+      osc.connect(f); f.connect(env);
+      // dry path + reverb wet path
+      if(rv){ env.connect(rv.dry); rv.dry.connect(a.destination); env.connect(rv.conv); }
+      else { env.connect(a.destination); }
       fm.start(t); osc.start(t);
       fm.stop(t+chirpDur); osc.stop(t+chirpDur);
     }
@@ -663,6 +690,7 @@ window.addEventListener('touchstart',e=>{
   const near=findBodyNear(t.clientX, t.clientY);
   if(near){
     touchBody=near;
+    touchBody._interacted=true;
     touchOffset={x:near.position.x-t.clientX, y:near.position.y-t.clientY};
   } else {
     lastFocusTime=Date.now(); ime.focus(); ime.value='';
@@ -729,6 +757,29 @@ mouse.pixelRatio = DPR;
 const mcon=MouseConstraint.create(eng,{mouse,constraint:{stiffness:0.12,damping:0.1,render:{visible:false}}});
 World.add(world,mcon);
 mouse.element.removeEventListener('mousewheel',mouse.mousewheel);
+
+// mark body as interacted when mouse grabs it
+Matter.Events.on(mcon,'startdrag',e=>{
+  if(e.body) e.body._interacted=true;
+});
+
+// ── Collision landing sounds ──
+const lastLandTime={};
+Matter.Events.on(eng,'collisionStart',e=>{
+  if(muted) return;
+  e.pairs.forEach(pair=>{
+    [pair.bodyA, pair.bodyB].forEach(b=>{
+      if(!b._ch) return; // only char bodies
+      const now=Date.now();
+      if(lastLandTime[b.id] && now-lastLandTime[b.id]<50) return;
+      const rel=pair.collision ? Math.abs(pair.bodyA.velocity.y - pair.bodyB.velocity.y) : 0;
+      if(rel<1.5) return;
+      lastLandTime[b.id]=now;
+      const vol=b._interacted ? 0.18 : 0.07;
+      playThud(vol);
+    });
+  });
+});
 
 // ── Render ──
 function draw(){
