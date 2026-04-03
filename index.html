@@ -450,37 +450,38 @@ function startSunnySound(){
   if(muted||sunnyAmb) return;
   try{
     Tone.start();
-    const reverb=new Tone.Reverb({decay:15,wet:0.6}).toDestination();
-    const vol=new Tone.Volume(-22).connect(reverb);
+    const reverb=new Tone.Reverb({decay:12,wet:0.4}).toDestination();
+    const vol=new Tone.Volume(-28).connect(reverb);
     
-    // Slow breathing pad
+    // Slow breathing pad - even slower
     const notes=['C4','E4','A4','B4','D5'];
     const synths=notes.map((note)=>{
       const s=new Tone.Synth({
-        oscillator:{type:'fatsine', count:3, spread:15},
-        envelope:{attack:5,decay:0,sustain:1,release:8},
+        oscillator:{type:'sine'},
+        envelope:{attack:8,decay:0,sustain:1,release:10},
       }).connect(vol);
       s.triggerAttack(note);
       return s;
     });
 
-    // Wind/Leaf rustle (soft pink noise with slow moving filter)
-    const noise=new Tone.Noise('pink').start();
-    const filter=new Tone.AutoFilter({frequency:0.05, baseFrequency:800, octaves:2.5}).connect(vol);
+    // Wind/Leaf rustle - significantly reduced/removed "noisy" part
+    const noise=new Tone.Noise('brown').start();
+    const filter=new Tone.AutoFilter({frequency:0.03, baseFrequency:400, octaves:1.5}).connect(vol);
     noise.connect(filter);
     filter.start();
+    noise.volume.value=-35; // Lower base volume for noise
 
-    // Distant "chime/bird" sparkles
+    // Distant "chime/bird" sparkles - slower
     const chime=new Tone.PolySynth(Tone.Synth, {
       oscillator:{type:'sine'},
-      envelope:{attack:0.1, decay:0.8, sustain:0.1, release:1.2}
+      envelope:{attack:0.2, decay:1.2, sustain:0.1, release:2.0}
     }).connect(vol);
     const chimeLoop=new Tone.Loop(time=>{
-      if(Math.random()>0.4){
+      if(Math.random()>0.5){
         const n=['C6','E6','G6','A6','B6'][Math.floor(Math.random()*5)];
-        chime.triggerAttackRelease(n, '16n', time, 0.2+Math.random()*0.3);
+        chime.triggerAttackRelease(n, '16n', time, 0.1+Math.random()*0.2);
       }
-    }, '2n').start('+2');
+    }, '1n').start('+4'); // Slower loop
 
     sunnyAmb={synths,noise,filter,chime,chimeLoop,vol,reverb};
   }catch(e){}
@@ -507,31 +508,32 @@ function startRainSound(){
   if(muted||rainAmb) return;
   try{
     Tone.start();
-    const reverb=new Tone.Reverb({decay:4,wet:0.5}).toDestination();
-    const mainVol=new Tone.Volume(-24).connect(reverb);
+    const reverb=new Tone.Reverb({decay:6,wet:0.6}).toDestination();
+    const mainVol=new Tone.Volume(-20).connect(reverb);
 
-    // Layer 1: Distant wash (Pink Noise)
+    // Layer 1: Distant wash (Pink Noise) - more subtle
     const wash=new Tone.Noise('pink').start();
-    const washFilter=new Tone.Filter(1200, 'lowpass').connect(mainVol);
+    const washFilter=new Tone.Filter(800, 'lowpass').connect(mainVol);
     wash.connect(washFilter);
+    wash.volume.value=-10;
 
     // Layer 2: Close patter (White Noise with fast envelopes)
     const patter=new Tone.Noise('white').start();
-    const patterFilter=new Tone.Filter(3500, 'highpass');
-    const patterEnv=new Tone.AmplitudeEnvelope({attack:0.001, decay:0.02, sustain:0, release:0.02});
+    const patterFilter=new Tone.Filter(4500, 'highpass');
+    const patterEnv=new Tone.AmplitudeEnvelope({attack:0.001, decay:0.03, sustain:0, release:0.03});
     patter.connect(patterFilter); patterFilter.connect(patterEnv); patterEnv.connect(mainVol);
     const patterLoop=new Tone.Loop(time=>{
-      patterEnv.triggerAttack(time, 0.1+Math.random()*0.2);
+      patterEnv.triggerAttack(time, 0.2+Math.random()*0.3);
     }, '32n').start();
 
     // Layer 3: Occasional heavy drips (MembraneSynth)
     const drip=new Tone.MembraneSynth({
-      pitchDecay:0.005, octaves:2, envelope:{attack:0.001, decay:0.4, sustain:0.01, release:0.4}
+      pitchDecay:0.008, octaves:2.5, envelope:{attack:0.001, decay:0.3, sustain:0.01, release:0.3}
     }).connect(mainVol);
-    drip.volume.value=-15;
+    drip.volume.value=-18;
     const dripLoop=new Tone.Loop(time=>{
-      if(Math.random()>0.6){
-        drip.triggerAttackRelease(400+Math.random()*1200, '32n', time, 0.1+Math.random()*0.3);
+      if(Math.random()>0.5){
+        drip.triggerAttackRelease(300+Math.random()*800, '32n', time, 0.1+Math.random()*0.2);
       }
     }, '4n').start();
 
