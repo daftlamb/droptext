@@ -329,37 +329,38 @@ function playKey(){
     const degree=scale[Math.floor(Math.random()*scale.length)];
     const midi=BASE_MIDI+degree+octave*12;
     const freq=440*Math.pow(2,(midi-69)/12);
-
-    const dur=0.55+Math.random()*0.2;
     const now=a.currentTime;
 
-    // fundamental
-    const o1=a.createOscillator(); o1.type='sine'; o1.frequency.value=freq;
-    // 2nd harmonic (softer, piano-like)
-    const o2=a.createOscillator(); o2.type='sine'; o2.frequency.value=freq*2;
-    // 3rd harmonic (very soft)
-    const o3=a.createOscillator(); o3.type='sine'; o3.frequency.value=freq*3;
+    // grain: tiny noise burst pitched via bandpass
+    const grainDur=0.03+Math.random()*0.05;
+    const buf=a.createBuffer(1,Math.floor(a.sampleRate*grainDur),a.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,1.5);
+    const grain=a.createBufferSource(); grain.buffer=buf;
 
-    const g1=a.createGain(), g2=a.createGain(), g3=a.createGain();
-    const master=a.createGain();
+    // narrow bandpass locks it to the quantized pitch
+    const bp=a.createBiquadFilter(); bp.type='bandpass';
+    bp.frequency.value=freq; bp.Q.value=18+Math.random()*12;
 
-    // piano envelope: fast attack, medium decay, no sustain
-    master.gain.setValueAtTime(0,now);
-    master.gain.linearRampToValueAtTime(0.12,now+0.008);
-    master.gain.exponentialRampToValueAtTime(0.04,now+0.12);
-    master.gain.exponentialRampToValueAtTime(0.0001,now+dur);
+    // secondary grain at 1 octave up for shimmer
+    const buf2=a.createBuffer(1,Math.floor(a.sampleRate*grainDur*0.6),a.sampleRate);
+    const d2=buf2.getChannelData(0);
+    for(let i=0;i<d2.length;i++) d2[i]=(Math.random()*2-1)*Math.pow(1-i/d2.length,2);
+    const grain2=a.createBufferSource(); grain2.buffer=buf2;
+    const bp2=a.createBiquadFilter(); bp2.type='bandpass';
+    bp2.frequency.value=freq*2; bp2.Q.value=22;
 
-    g1.gain.value=1.0;
-    g2.gain.value=0.35;
-    g3.gain.value=0.08;
+    const g=a.createGain();
+    g.gain.setValueAtTime(0.14+Math.random()*0.06, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now+grainDur+0.06);
 
-    o1.connect(g1); g1.connect(master);
-    o2.connect(g2); g2.connect(master);
-    o3.connect(g3); g3.connect(master);
-    master.connect(a.destination);
+    const g2=a.createGain(); g2.gain.value=0.4;
 
-    o1.start(now); o2.start(now); o3.start(now);
-    o1.stop(now+dur); o2.stop(now+dur); o3.stop(now+dur);
+    grain.connect(bp); bp.connect(g); g.connect(a.destination);
+    grain2.connect(bp2); bp2.connect(g2); g2.connect(g);
+
+    grain.start(now); grain2.start(now+0.008);
+    grain.stop(now+grainDur+0.1); grain2.stop(now+grainDur+0.08);
   }catch(e){}
 }
 function playThud(vol){
