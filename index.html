@@ -76,7 +76,8 @@ body.sunny #dappled-light{display:block;}
 #btn-dark:hover{color:#888;}
 #btn-flow{position:fixed;top:20px;left:20px;cursor:pointer;line-height:1;z-index:200;}
 #btn-flow:hover{color:#888;}
-#btn-flow.active{color:#8a8078;}
+#btn-flow.active{color:var(--dark-col);font-weight:bold;}
+#btn-flow.active::after{content:'●';font-size:10px;margin-left:4px;vertical-align:middle;}
 #title{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Instrument Serif',serif;font-size:clamp(28px,8vw,52px);color:#c8c0b4;pointer-events:none;letter-spacing:-0.02em;transition:opacity .6s;z-index:200;}
 </style>
 </head>
@@ -149,6 +150,25 @@ window.addEventListener('resize', resize);
 
 const eng  = Engine.create({ gravity:{x:0,y:6}, enableSleeping:true });
 const world = eng.world;
+
+let lastLandTime = 0;
+Matter.Events.on(eng, 'collisionStart', (event) => {
+  const now = Date.now();
+  event.pairs.forEach((pair) => {
+    const b = (pair.bodyA === floor) ? pair.bodyB : (pair.bodyB === floor ? pair.bodyA : null);
+    if(b && !b.isStatic && !b.isSleeping){
+      const v = Math.abs(b.velocity.y);
+      // Only play if it has been marked as "interacted" (dragged or dropped manually)
+      if(b.interacted && v > 1.5 && now - lastLandTime > 50){
+        playThud(Math.min(v/8, 1.2));
+        lastLandTime = now;
+        // Optional: Reset flag so it only thuds once per "drop"
+        // b.interacted = false; 
+      }
+    }
+  });
+});
+
 let floor, wL, wR;
 function rebuildWalls(){
   if(floor) World.remove(world,[floor,wL,wR]);
@@ -323,19 +343,52 @@ function playKey(){
     src.connect(f); f.connect(g); g.connect(a.destination); src.start();
   }catch(e){}
 }
-function playThud(){
+function playLand(vol){
   if(muted) return;
   try{
-    const a=getAC(),dur=0.14;
+    const a=getAC(),dur=0.08+Math.random()*0.04;
     const buf=a.createBuffer(1,Math.floor(a.sampleRate*dur),a.sampleRate);
     const d=buf.getChannelData(0);
-    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2)*0.5;
+    // slightly softer, more "landing" sound
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3)*0.4;
     const src=a.createBufferSource(); src.buffer=buf;
     const g=a.createGain();
-    g.gain.setValueAtTime(0.16,a.currentTime);
+    g.gain.setValueAtTime(0.02 * vol,a.currentTime);
     g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+dur);
-    const f=a.createBiquadFilter(); f.type='lowpass'; f.frequency.value=280;
+    const f=a.createBiquadFilter(); f.type='lowpass'; f.frequency.value=800+Math.random()*400;
     src.connect(f); f.connect(g); g.connect(a.destination); src.start();
+  }catch(e){}
+}
+function playThud(vol=1.0){
+  if(muted) return;
+  try{
+    const a=getAC();
+    const now=a.currentTime;
+    
+    // Low-end thud (Sine sweep)
+    const osc=a.createOscillator();
+    const env=a.createGain();
+    osc.type='sine';
+    osc.frequency.setValueAtTime(120, now);
+    osc.frequency.exponentialRampToValueAtTime(45, now+0.12);
+    env.gain.setValueAtTime(0, now);
+    env.gain.linearRampToValueAtTime(0.4*vol, now+0.005);
+    env.gain.exponentialRampToValueAtTime(0.001, now+0.25);
+    osc.connect(env); env.connect(a.destination);
+    osc.start(now); osc.stop(now+0.3);
+
+    // Sharp transient (Noise)
+    const noise=a.createBufferSource();
+    const buf=a.createBuffer(1, Math.floor(a.sampleRate*0.05), a.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/200);
+    noise.buffer=buf;
+    const nF=a.createBiquadFilter(); nF.type='bandpass'; nF.frequency.value=800; nF.Q.value=0.5;
+    const nG=a.createGain();
+    nG.gain.setValueAtTime(0.25*vol, now);
+    nG.gain.exponentialRampToValueAtTime(0.001, now+0.04);
+    noise.connect(nF); nF.connect(nG); nG.connect(a.destination);
+    noise.start(now);
   }catch(e){}
 }
 
@@ -661,6 +714,7 @@ window.addEventListener('touchstart',e=>{
   const near=findBodyNear(t.clientX, t.clientY);
   if(near){
     touchBody=near;
+    touchBody.interacted=true; // enable thud
     touchOffset={x:near.position.x-t.clientX, y:near.position.y-t.clientY};
   } else {
     lastFocusTime=Date.now(); ime.focus(); ime.value='';
@@ -674,8 +728,14 @@ window.addEventListener('touchmove',e=>{
   Body.setVelocity(touchBody,{x:0,y:0});
 },{passive:true});
 
-window.addEventListener('touchend',()=>{ touchBody=null; },{passive:true});
+window.addEventListener('touchend',()=>{ 
+  touchBody=null; 
+},{passive:true});
 ime.focus();
+
+// For MouseConstraint releases
+Events.on(mcon, 'startdrag', e => { if(e.body) e.body.interacted = true; });
+Events.on(mcon, 'enddrag', e => { if(e.body) e.body.interacted = true; });
 
 let composing=false;
 ime.addEventListener('compositionstart',()=>{ composing=true; });
