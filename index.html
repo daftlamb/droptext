@@ -340,7 +340,15 @@ function playKey(){
 
     // narrow bandpass locks it to the quantized pitch
     const bp=a.createBiquadFilter(); bp.type='bandpass';
-    bp.frequency.value=freq; bp.Q.value=18+Math.random()*12;
+    bp.frequency.value=freq; bp.Q.value=6+Math.random()*5;
+
+    // low shelf to warm/darken
+    const shelf=a.createBiquadFilter(); shelf.type='lowshelf';
+    shelf.frequency.value=600; shelf.gain.value=6;
+
+    // high shelf to cut brightness
+    const hicut=a.createBiquadFilter(); hicut.type='highshelf';
+    hicut.frequency.value=3500; hicut.gain.value=-10;
 
     // secondary grain at 1 octave up for shimmer
     const buf2=a.createBuffer(1,Math.floor(a.sampleRate*grainDur*0.6),a.sampleRate);
@@ -348,15 +356,15 @@ function playKey(){
     for(let i=0;i<d2.length;i++) d2[i]=(Math.random()*2-1)*Math.pow(1-i/d2.length,2);
     const grain2=a.createBufferSource(); grain2.buffer=buf2;
     const bp2=a.createBiquadFilter(); bp2.type='bandpass';
-    bp2.frequency.value=freq*2; bp2.Q.value=22;
+    bp2.frequency.value=freq*2; bp2.Q.value=8;
 
     const g=a.createGain();
     g.gain.setValueAtTime(0.14+Math.random()*0.06, now);
     g.gain.exponentialRampToValueAtTime(0.0001, now+grainDur+0.06);
 
-    const g2=a.createGain(); g2.gain.value=0.4;
+    const g2=a.createGain(); g2.gain.value=0.22;
 
-    grain.connect(bp); bp.connect(g); g.connect(a.destination);
+    grain.connect(bp); bp.connect(shelf); shelf.connect(hicut); hicut.connect(g); g.connect(a.destination);
     grain2.connect(bp2); bp2.connect(g2); g2.connect(g);
 
     grain.start(now); grain2.start(now+0.008);
