@@ -340,15 +340,7 @@ function playKey(){
 
     // narrow bandpass locks it to the quantized pitch
     const bp=a.createBiquadFilter(); bp.type='bandpass';
-    bp.frequency.value=freq; bp.Q.value=10+Math.random()*8;
-
-    // low shelf: subtle warmth
-    const shelf=a.createBiquadFilter(); shelf.type='lowshelf';
-    shelf.frequency.value=600; shelf.gain.value=3;
-
-    // high shelf: trim just the harshness
-    const hicut=a.createBiquadFilter(); hicut.type='highshelf';
-    hicut.frequency.value=5000; hicut.gain.value=-5;
+    bp.frequency.value=freq; bp.Q.value=18+Math.random()*12;
 
     // secondary grain at 1 octave up for shimmer
     const buf2=a.createBuffer(1,Math.floor(a.sampleRate*grainDur*0.6),a.sampleRate);
@@ -356,16 +348,24 @@ function playKey(){
     for(let i=0;i<d2.length;i++) d2[i]=(Math.random()*2-1)*Math.pow(1-i/d2.length,2);
     const grain2=a.createBufferSource(); grain2.buffer=buf2;
     const bp2=a.createBiquadFilter(); bp2.type='bandpass';
-    bp2.frequency.value=freq*2; bp2.Q.value=14;
+    bp2.frequency.value=freq*2; bp2.Q.value=22;
 
     const g=a.createGain();
-    g.gain.setValueAtTime(0.14+Math.random()*0.06, now);
+    g.gain.setValueAtTime(0.09+Math.random()*0.04, now);
     g.gain.exponentialRampToValueAtTime(0.0001, now+grainDur+0.06);
 
-    const g2=a.createGain(); g2.gain.value=0.30;
+    const g2=a.createGain(); g2.gain.value=0.4;
 
-    grain.connect(bp); bp.connect(shelf); shelf.connect(hicut); hicut.connect(g); g.connect(a.destination);
+    // small reverb tail via convolver
+    const rvLen=Math.floor(a.sampleRate*0.8);
+    const rvBuf=a.createBuffer(2,rvLen,a.sampleRate);
+    for(let c=0;c<2;c++){ const ch=rvBuf.getChannelData(c); for(let i=0;i<rvLen;i++) ch[i]=(Math.random()*2-1)*Math.pow(1-i/rvLen,3); }
+    const rv=a.createConvolver(); rv.buffer=rvBuf;
+    const rvGain=a.createGain(); rvGain.gain.value=0.18;
+
+    grain.connect(bp); bp.connect(g); g.connect(a.destination);
     grain2.connect(bp2); bp2.connect(g2); g2.connect(g);
+    g.connect(rv); rv.connect(rvGain); rvGain.connect(a.destination);
 
     grain.start(now); grain2.start(now+0.008);
     grain.stop(now+grainDur+0.1); grain2.stop(now+grainDur+0.08);
