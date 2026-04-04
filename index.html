@@ -360,7 +360,29 @@ const SCALES = [
 const BASE_MIDI = 60; // middle C
 const OCTAVE_RANGE = [0,1,2]; // 3 octaves up from C4
 
+let soundMode='piano'; // 'piano' | 'typewriter'
+
+function playTypewriter(){
+  if(muted) return;
+  try{
+    const a=getAC();
+    const dur=0.06;
+    const buf=a.createBuffer(1,Math.floor(a.sampleRate*dur),a.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,1.2);
+    const src=a.createBufferSource(); src.buffer=buf;
+    const g=a.createGain();
+    g.gain.setValueAtTime(0.22,a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+dur);
+    const fHi=a.createBiquadFilter(); fHi.type='bandpass'; fHi.frequency.value=2800+Math.random()*600; fHi.Q.value=1.2;
+    const fLo=a.createBiquadFilter(); fLo.type='lowpass'; fLo.frequency.value=5000;
+    src.connect(fHi); fHi.connect(fLo); fLo.connect(g); g.connect(a.destination);
+    src.start();
+  }catch(e){}
+}
+
 function playKey(){
+  if(soundMode==='typewriter'){ playTypewriter(); return; }
   if(muted) return;
   try{
     const a=getAC();
@@ -935,32 +957,6 @@ document.getElementById('btn-reset').addEventListener('click',()=>{
   });
 })();
 
-// ── Key sound mode ──
-let soundMode='piano'; // 'piano' | 'typewriter'
-function playTypewriter(){
-  if(muted) return;
-  try{
-    const a=getAC();
-    const dur=0.06;
-    const buf=a.createBuffer(1,Math.floor(a.sampleRate*dur),a.sampleRate);
-    const d=buf.getChannelData(0);
-    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,1.2);
-    const src=a.createBufferSource(); src.buffer=buf;
-    const g=a.createGain();
-    g.gain.setValueAtTime(0.22,a.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+dur);
-    const fHi=a.createBiquadFilter(); fHi.type='bandpass'; fHi.frequency.value=2800+Math.random()*600; fHi.Q.value=1.2;
-    const fLo=a.createBiquadFilter(); fLo.type='lowpass'; fLo.frequency.value=5000;
-    src.connect(fHi); fHi.connect(fLo); fLo.connect(g); g.connect(a.destination);
-    src.start();
-  }catch(e){}
-}
-// patch playKey to respect soundMode
-const _playKeyOriginal=playKey;
-window.playKey=function(){
-  if(soundMode==='typewriter') playTypewriter();
-  else _playKeyOriginal();
-};
 // toggle UI
 (function(){
   const piano=document.getElementById('snd-piano');
@@ -999,9 +995,9 @@ Matter.Events.on(eng,'collisionStart',e=>{
     [pair.bodyA, pair.bodyB].forEach(b=>{
       if(!b._ch) return; // only char bodies
       const now=Date.now();
-      if(lastLandTime[b.id] && now-lastLandTime[b.id]<50) return;
+      if(lastLandTime[b.id] && now-lastLandTime[b.id]<600) return; // longer cooldown
       const rel=pair.collision ? Math.abs(pair.bodyA.velocity.y - pair.bodyB.velocity.y) : 0;
-      if(rel<1.5) return;
+      if(rel<3.5) return; // higher threshold — ignore micro-jitter
       lastLandTime[b.id]=now;
       const vol=b._interacted ? 0.18 : 0.07;
       playThud(vol);
