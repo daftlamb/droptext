@@ -134,6 +134,13 @@ body.sunny #dappled-light{display:block;}
       <b>reset</b> · clear the stage.<br><br>
       Fill the limit and watch the words collapse.
     </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;font-size:12px;color:#8a8078;">
+      <span>key sound</span>
+      <div id="sound-toggle" style="display:flex;gap:0;border:1px solid rgba(200,192,180,.2);border-radius:6px;overflow:hidden;cursor:pointer;">
+        <span id="snd-piano" style="padding:4px 12px;font-family:'Instrument Serif',serif;font-size:13px;background:rgba(200,192,180,.15);color:#c8c0b4;">piano</span>
+        <span id="snd-type"  style="padding:4px 12px;font-family:'Instrument Serif',serif;font-size:13px;background:none;color:#8a8078;">typewriter</span>
+      </div>
+    </div>
     <div class="info-footer">
       Design by Mog · <a href="mailto:daftlamb@gmail.com" style="color:#a09890;text-decoration:none;">daftlamb@gmail.com</a>
     </div>
@@ -542,9 +549,69 @@ function playThud(vol){
       cx.beginPath(); cx.arc(sx,sy,r,0,Math.PI*2);
       cx.fillStyle=`rgba(210,218,238,${a})`; cx.fill();
     });
+    // shooting stars
+    shootingStars.forEach((s,i)=>{
+      s.t+=1;
+      const prog=s.t/s.dur;
+      if(prog>=1){ shootingStars.splice(i,1); return; }
+      const x=s.x+s.dx*prog;
+      const y=s.y+s.dy*prog;
+      const tailLen=s.len*(1-prog*0.4);
+      const alpha=prog<0.15?prog/0.15:prog>0.75?(1-prog)/0.25:1;
+      const grd=cx.createLinearGradient(x,y,x-s.dx*prog*0.4,y-s.dy*prog*0.4);
+      grd.addColorStop(0,`rgba(255,255,255,${alpha*0.95})`);
+      grd.addColorStop(0.3,`rgba(210,218,255,${alpha*0.5})`);
+      grd.addColorStop(1,'rgba(210,218,255,0)');
+      cx.beginPath();
+      cx.moveTo(x,y);
+      cx.lineTo(x-Math.cos(s.angle)*tailLen,y-Math.sin(s.angle)*tailLen);
+      cx.strokeStyle=grd; cx.lineWidth=1.5; cx.stroke();
+      // head glow
+      const hgrd=cx.createRadialGradient(x,y,0,x,y,3);
+      hgrd.addColorStop(0,`rgba(255,255,255,${alpha})`);
+      hgrd.addColorStop(1,'rgba(255,255,255,0)');
+      cx.fillStyle=hgrd; cx.beginPath(); cx.arc(x,y,3,0,Math.PI*2); cx.fill();
+    });
   }
   requestAnimationFrame(tick);
 })();
+
+// ── Shooting stars ──
+const shootingStars=[];
+function spawnShootingStar(){
+  const w=innerWidth, h=innerHeight;
+  const angle=(210+Math.random()*30)*Math.PI/180;
+  const sx=w*0.4+Math.random()*w*0.6;
+  const sy=Math.random()*h*0.35;
+  const speed=8+Math.random()*6;
+  const dur=28+Math.random()*20;
+  shootingStars.push({
+    x:sx,y:sy,
+    dx:Math.cos(angle)*speed*dur,
+    dy:Math.sin(angle)*speed*dur,
+    angle,dur,t:0,
+    len:120+Math.random()*80
+  });
+  if(Math.random()<0.25){
+    setTimeout(()=>{
+      const ox=sx-30-Math.random()*40;
+      const oy=sy+10+Math.random()*20;
+      const dur2=22+Math.random()*15;
+      shootingStars.push({
+        x:ox,y:oy,
+        dx:Math.cos(angle)*speed*dur2*0.8,
+        dy:Math.sin(angle)*speed*dur2*0.8,
+        angle,dur:dur2,t:0,
+        len:70+Math.random()*50
+      });
+    },300+Math.random()*400);
+  }
+}
+function scheduleShootingStar(){
+  spawnShootingStar();
+  setTimeout(scheduleShootingStar, 10000+Math.random()*10000);
+}
+setTimeout(scheduleShootingStar, 3000+Math.random()*5000);
 
 // ── Rain sound ──
 // ── Sunny ambient (Tone.js) ──
@@ -866,6 +933,50 @@ document.getElementById('btn-reset').addEventListener('click',()=>{
   backdrop.addEventListener('click',function(e){
     if(e.target===backdrop) backdrop.style.display='none';
   });
+})();
+
+// ── Key sound mode ──
+let soundMode='piano'; // 'piano' | 'typewriter'
+function playTypewriter(){
+  if(muted) return;
+  try{
+    const a=getAC();
+    const dur=0.06;
+    const buf=a.createBuffer(1,Math.floor(a.sampleRate*dur),a.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,1.2);
+    const src=a.createBufferSource(); src.buffer=buf;
+    const g=a.createGain();
+    g.gain.setValueAtTime(0.22,a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+dur);
+    const fHi=a.createBiquadFilter(); fHi.type='bandpass'; fHi.frequency.value=2800+Math.random()*600; fHi.Q.value=1.2;
+    const fLo=a.createBiquadFilter(); fLo.type='lowpass'; fLo.frequency.value=5000;
+    src.connect(fHi); fHi.connect(fLo); fLo.connect(g); g.connect(a.destination);
+    src.start();
+  }catch(e){}
+}
+// patch playKey to respect soundMode
+const _playKeyOriginal=playKey;
+window.playKey=function(){
+  if(soundMode==='typewriter') playTypewriter();
+  else _playKeyOriginal();
+};
+// toggle UI
+(function(){
+  const piano=document.getElementById('snd-piano');
+  const type=document.getElementById('snd-type');
+  function setMode(m){
+    soundMode=m;
+    if(m==='piano'){
+      piano.style.background='rgba(200,192,180,.15)'; piano.style.color='#c8c0b4';
+      type.style.background='none'; type.style.color='#8a8078';
+    } else {
+      type.style.background='rgba(200,192,180,.15)'; type.style.color='#c8c0b4';
+      piano.style.background='none'; piano.style.color='#8a8078';
+    }
+  }
+  piano.addEventListener('click',()=>setMode('piano'));
+  type.addEventListener('click',()=>setMode('typewriter'));
 })();
 
 // ── Mouse ──
